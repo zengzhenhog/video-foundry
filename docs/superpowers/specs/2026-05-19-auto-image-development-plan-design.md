@@ -1,4 +1,4 @@
-# Auto Image AI 可执行开发详细计划
+# video-foundry AI 可执行开发详细计划
 
 日期：2026-05-19  
 来源文档：`docs/system-design.md`、`docs/system-design.zh-CN.md`  
@@ -874,4 +874,3 @@ Phase 9 之后可考虑：
 - 团队审核和角色权限。
 
 这些扩展不应阻塞本地视频生成主流程。
-

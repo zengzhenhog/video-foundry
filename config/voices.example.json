@@ -1,0 +1,11 @@
+{
+  "voices": [
+    {
+      "id": "mock-narrator",
+      "provider": "mock",
+      "name": "Mock Narrator",
+      "language": "en-US",
+      "style": "clear"
+    }
+  ]
+}

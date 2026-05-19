@@ -1,0 +1,38 @@
+{
+  "vertical_1080x1920": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "safe_area": {
+      "top": 160,
+      "right": 72,
+      "bottom": 220,
+      "left": 72
+    },
+    "max_zoom": 1.12
+  },
+  "landscape_1920x1080": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "safe_area": {
+      "top": 90,
+      "right": 120,
+      "bottom": 120,
+      "left": 120
+    },
+    "max_zoom": 1.08
+  },
+  "square_1080x1080": {
+    "width": 1080,
+    "height": 1080,
+    "fps": 30,
+    "safe_area": {
+      "top": 96,
+      "right": 72,
+      "bottom": 120,
+      "left": 72
+    },
+    "max_zoom": 1.1
+  }
+}

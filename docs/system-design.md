@@ -1,4 +1,4 @@
-# Auto Image Video Production System Design
+# video-foundry Video Production System Design
 
 Version: 0.1  
 Date: 2026-05-19  
@@ -153,10 +153,7 @@ Example script JSON:
   "duration_target_sec": 60,
   "title": "韦伯望远镜看到的恒星诞生区",
   "narration": "这张图像来自詹姆斯·韦伯太空望远镜...",
-  "review_notes": [
-    "All claims are derived from the official source description.",
-    "No distance value was added because the source text did not include one."
-  ]
+  "review_notes": ["All claims are derived from the official source description.", "No distance value was added because the source text did not include one."]
 }
 ```
 
@@ -195,8 +192,8 @@ Shot plan example:
       "start_sec": 0,
       "end_sec": 7.5,
       "type": "slow_push_in",
-      "crop_start": [0.05, 0.05, 0.90, 0.90],
-      "crop_end": [0.15, 0.12, 0.70, 0.70],
+      "crop_start": [0.05, 0.05, 0.9, 0.9],
+      "crop_end": [0.15, 0.12, 0.7, 0.7],
       "easing": "easeInOutCubic",
       "caption": "这张图像来自詹姆斯·韦伯太空望远镜。"
     }

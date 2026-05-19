@@ -1,0 +1,29 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+
+# Frontend
+web/node_modules/
+web/dist/
+web/.vite/
+
+# Local generated project artifacts
+projects/*
+!projects/.gitkeep
+
+# OS and editor noise
+.DS_Store
+Thumbs.db
