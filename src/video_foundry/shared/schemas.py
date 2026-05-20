@@ -119,11 +119,12 @@ class Script(BaseDiskModel):
     language: str = Field(default="zh-CN", min_length=2, max_length=32)
     duration_target_sec: float = Field(gt=0, le=3600)
     title: str = Field(default="", max_length=240)
-    narration: str = ""
+    narration: str = Field(default="", max_length=20000)
     segments: list[ScriptSegment] = Field(default_factory=list)
-    review_notes: str = ""
+    review_notes: str = Field(default="", max_length=12000)
     approved: bool = False
     updated_at: datetime = Field(default_factory=utc_now)
+    approved_at: datetime | None = None
 
     @field_validator("project_id")
     @classmethod

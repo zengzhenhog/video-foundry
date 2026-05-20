@@ -14,7 +14,10 @@ const steps = [
 type StepKey = (typeof steps)[number]["key"];
 
 function isDisabled(key: StepKey, projectId?: string): boolean {
-  return key !== "projects" && (key !== "assets" || !projectId);
+  if (key === "render") {
+    return true;
+  }
+  return key !== "projects" && !projectId;
 }
 
 function stepTo(key: StepKey, projectId?: string): string {
@@ -23,6 +26,9 @@ function stepTo(key: StepKey, projectId?: string): string {
   }
   if (key === "assets" && projectId) {
     return `/projects/${projectId}/assets`;
+  }
+  if (key === "script" && projectId) {
+    return `/projects/${projectId}/script`;
   }
   return "#";
 }

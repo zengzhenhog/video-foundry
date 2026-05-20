@@ -186,6 +186,81 @@ def test_background_music_upload_is_optional_for_asset_readiness(
     assert detail_with_music["background_music"]["original_filename"] == "bed.mp3"
 
 
+def test_script_api_generate_save_and_approve(client: tuple[TestClient, ProjectStorage]) -> None:
+    test_client, storage = client
+    project = test_client.post(
+        "/api/projects",
+        json={"name": "Script API", "target_language": "zh-CN", "target_duration_sec": 24},
+    ).json()
+    test_client.post(
+        f"/api/projects/{project['id']}/assets/image",
+        files={"file": ("source.png", _image_bytes(size=(1080, 1920)), "image/png")},
+    )
+    test_client.post(
+        f"/api/projects/{project['id']}/assets/text",
+        json={
+            "title": "Grounded image",
+            "description": "Official source description for the image.",
+            "source_url": "https://example.test/source",
+            "credit": "Example Observatory",
+        },
+    )
+
+    generate_response = test_client.post(
+        f"/api/projects/{project['id']}/script/generate",
+        json={"user_draft": "Keep the tone calm."},
+    )
+
+    assert generate_response.status_code == 200
+    generated = generate_response.json()
+    assert generated["approved"] is False
+    assert generated["segments"]
+    assert generated["review_notes"]
+    assert (storage.projects_root / project["id"] / "script" / "script.json").exists()
+    assert (storage.projects_root / project["id"] / "script" / "script.md").exists()
+    assert test_client.get(f"/api/projects/{project['id']}").json()["status"] == "script_ready"
+
+    read_response = test_client.get(f"/api/projects/{project['id']}/script")
+    assert read_response.status_code == 200
+    assert read_response.json()["title"] == "Grounded image"
+
+    edited = {
+        "language": generated["language"],
+        "duration_target_sec": generated["duration_target_sec"],
+        "title": generated["title"],
+        "narration": "Edited narration grounded in the saved source.",
+        "segments": [
+            {
+                "start_sec": 0,
+                "end_sec": 24,
+                "text": "Edited narration grounded in the saved source.",
+            }
+        ],
+        "review_notes": "Grounded in the saved description, source URL, credit, and draft.",
+    }
+    save_response = test_client.put(f"/api/projects/{project['id']}/script", json=edited)
+    assert save_response.status_code == 200
+    assert save_response.json()["approved"] is False
+
+    approve_response = test_client.post(f"/api/projects/{project['id']}/script/approve")
+    assert approve_response.status_code == 200
+    assert approve_response.json()["approved"] is True
+    assert test_client.get(f"/api/projects/{project['id']}").json()["status"] == "script_approved"
+
+
+def test_script_api_returns_structured_error_before_assets_ready(
+    client: tuple[TestClient, ProjectStorage],
+) -> None:
+    test_client, _storage = client
+    project = test_client.post("/api/projects", json={"name": "No assets"}).json()
+
+    response = test_client.post(f"/api/projects/{project['id']}/script/generate", json={})
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "asset_not_ready_for_script"
+    assert "traceback" not in response.text.lower()
+
+
 def _image_bytes(*, size: tuple[int, int]) -> bytes:
     output = io.BytesIO()
     Image.new("RGB", size, color=(42, 80, 112)).save(output, format="PNG")

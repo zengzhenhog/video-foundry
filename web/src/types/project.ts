@@ -72,6 +72,26 @@ export interface ProjectDetail extends Project {
   asset_status: AssetStatusSummary;
 }
 
+export interface ScriptSegment {
+  start_sec: number;
+  end_sec: number;
+  text: string;
+}
+
+export interface Script {
+  schema_version: "1.0";
+  project_id: string;
+  language: string;
+  duration_target_sec: number;
+  title: string;
+  narration: string;
+  segments: ScriptSegment[];
+  review_notes: string;
+  approved: boolean;
+  updated_at: string;
+  approved_at: string | null;
+}
+
 export interface ProjectListResponse {
   projects: Project[];
 }
@@ -88,4 +108,17 @@ export interface AssetTextRequest {
   description: string;
   source_url: string | null;
   credit: string;
+}
+
+export interface ScriptGenerateRequest {
+  user_draft: string | null;
+}
+
+export interface ScriptUpdateRequest {
+  language: string;
+  duration_target_sec: number;
+  title: string;
+  narration: string;
+  segments: ScriptSegment[];
+  review_notes: string;
 }

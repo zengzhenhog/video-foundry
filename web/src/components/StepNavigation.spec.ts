@@ -16,6 +16,8 @@ describe("StepNavigation", () => {
 
     expect(wrapper.text()).toContain("项目");
     expect(wrapper.text()).toContain("素材");
+    expect(wrapper.text()).toContain("脚本");
     expect(wrapper.find(".step-navigation__item--active").text()).toBe("素材");
+    expect(wrapper.findAllComponents(RouterLinkStub)[2].props("to")).toBe("/projects/prj_123/script");
   });
 });

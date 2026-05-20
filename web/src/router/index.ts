@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import ProjectAssets from "../pages/ProjectAssets.vue";
 import ProjectCreate from "../pages/ProjectCreate.vue";
 import ProjectList from "../pages/ProjectList.vue";
+import ProjectScript from "../pages/ProjectScript.vue";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -18,6 +19,12 @@ const router = createRouter({
       path: "/projects/:id/assets",
       name: "project-assets",
       component: ProjectAssets,
+      props: true,
+    },
+    {
+      path: "/projects/:id/script",
+      name: "project-script",
+      component: ProjectScript,
       props: true,
     },
   ],
