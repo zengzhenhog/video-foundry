@@ -16,3 +16,17 @@ npm run typecheck
 npm run build
 npm run dev
 ```
+
+## Project API
+
+Phase 1 exposes disk-backed project metadata endpoints:
+
+```text
+POST /api/projects
+GET  /api/projects
+GET  /api/projects/{project_id}
+```
+
+Projects are stored under `projects/{project_id}` with `project.json` plus fixed
+artifact directories for later phases. API errors use the structured
+`{"error": {...}}` response shape.
