@@ -78,15 +78,19 @@ def test_script_requires_non_negative_timing_and_project_id() -> None:
 
 
 def test_voice_config_bounds_and_relative_audio_path() -> None:
-    voice = VoiceConfig(speed=1.2, volume_gain_db=-3, audio_path="audio/narration.wav")
+    voice = VoiceConfig(project_id="project_1", speed=1.2, volume_gain_db=-3, audio_path="audio/narration.wav")
 
     assert voice.audio_path == "audio/narration.wav"
+    assert voice.project_id == "project_1"
 
     with pytest.raises(ValidationError):
         VoiceConfig(speed=0.25)
 
     with pytest.raises(ValidationError):
         VoiceConfig(audio_path="C:/secret/narration.wav")
+
+    with pytest.raises(ValidationError):
+        VoiceConfig(settings={"api_key": "not allowed"})
 
 
 def test_background_music_timing_and_path_validation() -> None:

@@ -56,6 +56,46 @@ export interface BackgroundMusic {
   updated_at: string;
 }
 
+export interface VoiceConfig {
+  schema_version: "1.0";
+  project_id: string | null;
+  provider: string;
+  voice_id: string;
+  language: string;
+  speed: number;
+  volume_gain_db: number;
+  style: string | null;
+  settings: Record<string, unknown>;
+  audio_path: string | null;
+  duration_sec: number | null;
+  audio_format: string | null;
+  provider_metadata: Record<string, unknown>;
+  updated_at: string;
+}
+
+export interface VoiceProviderInfo {
+  id: string;
+  name: string;
+  enabled: boolean;
+  default: boolean;
+}
+
+export interface VoicePreset {
+  id: string;
+  provider: string;
+  name: string;
+  language: string;
+  style: string | null;
+}
+
+export interface VoiceProvidersResponse {
+  providers: VoiceProviderInfo[];
+}
+
+export interface VoicePresetsResponse {
+  presets: VoicePreset[];
+}
+
 export interface AssetStatusSummary {
   has_original_image: boolean;
   has_preview_image: boolean;
@@ -69,6 +109,7 @@ export interface AssetStatusSummary {
 export interface ProjectDetail extends Project {
   asset: Asset | null;
   background_music: BackgroundMusic | null;
+  voice_config: VoiceConfig | null;
   asset_status: AssetStatusSummary;
 }
 
@@ -121,4 +162,13 @@ export interface ScriptUpdateRequest {
   narration: string;
   segments: ScriptSegment[];
   review_notes: string;
+}
+
+export interface VoiceConfigRequest {
+  provider: string;
+  voice_id: string;
+  language: string;
+  speed: number;
+  volume_gain_db: number;
+  style: string | null;
 }

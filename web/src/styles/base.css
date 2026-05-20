@@ -309,7 +309,8 @@ h2 {
 }
 
 input,
-textarea {
+textarea,
+select {
   width: 100%;
   border: 1px solid #bdcad8;
   border-radius: 8px;
@@ -459,6 +460,20 @@ textarea {
 .script-preview li p {
   margin-bottom: 0;
   line-height: 1.5;
+}
+
+.voice-config,
+.voice-player {
+  display: grid;
+  gap: 16px;
+}
+
+.voice-player audio {
+  width: 100%;
+}
+
+.voice-meta {
+  margin-top: 0;
 }
 
 @media (max-width: 820px) {

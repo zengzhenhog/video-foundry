@@ -4,6 +4,7 @@ import ProjectAssets from "../pages/ProjectAssets.vue";
 import ProjectCreate from "../pages/ProjectCreate.vue";
 import ProjectList from "../pages/ProjectList.vue";
 import ProjectScript from "../pages/ProjectScript.vue";
+import ProjectVoice from "../pages/ProjectVoice.vue";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -25,6 +26,12 @@ const router = createRouter({
       path: "/projects/:id/script",
       name: "project-script",
       component: ProjectScript,
+      props: true,
+    },
+    {
+      path: "/projects/:id/voice",
+      name: "project-voice",
+      component: ProjectVoice,
       props: true,
     },
   ],

@@ -18,6 +18,7 @@ from video_foundry.shared.schemas import (
     Project,
     ProjectDetail,
     ProjectStatus,
+    VoiceConfig,
     utc_now,
 )
 from video_foundry.shared.storage import ProjectStorage
@@ -69,12 +70,14 @@ def build_project_detail(
     project: Project,
     *,
     background_music: BackgroundMusic | None = None,
+    voice_config: VoiceConfig | None = None,
 ) -> ProjectDetail:
     asset = read_asset_metadata(storage, project.id)
     return ProjectDetail(
         **project.model_dump(),
         asset=asset,
         background_music=background_music,
+        voice_config=voice_config,
         asset_status=summarize_asset_status(
             storage,
             project.id,

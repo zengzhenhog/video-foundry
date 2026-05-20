@@ -9,6 +9,10 @@ import type {
   Script,
   ScriptGenerateRequest,
   ScriptUpdateRequest,
+  VoiceConfig,
+  VoiceConfigRequest,
+  VoicePresetsResponse,
+  VoiceProvidersResponse,
 } from "../types/project";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
@@ -59,8 +63,14 @@ const ERROR_MESSAGES: Record<string, string> = {
   script_segments_required: "脚本至少需要一个段落。",
   asset_not_ready_for_script: "请先补齐图片、描述、来源 URL 和署名。",
   unsupported_background_music_format: "不支持该背景音乐格式。",
+  unsupported_tts_provider: "不支持或未启用该语音服务。",
   unsupported_image_format: "不支持该图片格式。",
   validation_error: "请求参数校验失败。",
+  voice_audio_not_found: "旁白音频尚未生成。",
+  voice_config_invalid: "旁白配置无效。",
+  voice_config_not_found: "请先保存旁白配置。",
+  voice_presets_invalid: "旁白音色配置无效。",
+  voice_presets_missing: "旁白音色配置缺失。",
 };
 
 export async function listProjects(): Promise<Project[]> {
@@ -150,6 +160,38 @@ export function approveScript(projectId: string): Promise<Script> {
   return request<Script>(`/api/projects/${encodeURIComponent(projectId)}/script/approve`, {
     method: "POST",
   });
+}
+
+export async function getVoiceProviders() {
+  const response = await request<VoiceProvidersResponse>("/api/voice/providers");
+  return response.providers;
+}
+
+export async function getVoicePresets() {
+  const response = await request<VoicePresetsResponse>("/api/voice/presets");
+  return response.presets;
+}
+
+export function saveVoiceConfig(
+  projectId: string,
+  payload: VoiceConfigRequest,
+): Promise<VoiceConfig> {
+  return request<VoiceConfig>(`/api/projects/${encodeURIComponent(projectId)}/voice/config`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function generateVoice(projectId: string): Promise<VoiceConfig> {
+  return request<VoiceConfig>(`/api/projects/${encodeURIComponent(projectId)}/voice/generate`, {
+    method: "POST",
+  });
+}
+
+export function voiceAudioUrl(projectId: string, updatedAt?: string | null): string {
+  const query = updatedAt ? `?v=${encodeURIComponent(updatedAt)}` : "";
+  return `${API_BASE_URL}/api/projects/${encodeURIComponent(projectId)}/voice/audio${query}`;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {

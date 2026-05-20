@@ -261,8 +261,127 @@ def test_script_api_returns_structured_error_before_assets_ready(
     assert "traceback" not in response.text.lower()
 
 
+def test_voice_provider_and_preset_endpoints(client: tuple[TestClient, ProjectStorage]) -> None:
+    test_client, _storage = client
+
+    providers_response = test_client.get("/api/voice/providers")
+    presets_response = test_client.get("/api/voice/presets")
+
+    assert providers_response.status_code == 200
+    assert providers_response.json()["providers"][0]["id"] == "mock"
+    assert presets_response.status_code == 200
+    assert any(preset["id"] == "mock-narrator" for preset in presets_response.json()["presets"])
+
+
+def test_voice_config_rejects_missing_voice_id(client: tuple[TestClient, ProjectStorage]) -> None:
+    test_client, _storage = client
+    project = test_client.post("/api/projects", json={"name": "Voice config"}).json()
+
+    response = test_client.put(
+        f"/api/projects/{project['id']}/voice/config",
+        json={
+            "provider": "mock",
+            "voice_id": "",
+            "language": "zh-CN",
+            "speed": 1,
+            "volume_gain_db": 0,
+            "style": "clear",
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "validation_error"
+
+
+def test_voice_generation_requires_approved_script(client: tuple[TestClient, ProjectStorage]) -> None:
+    test_client, _storage = client
+    project = _create_project_with_generated_script(test_client, approved=False)
+    config_response = _save_mock_voice_config(test_client, project["id"])
+    assert config_response.status_code == 200
+
+    response = test_client.post(f"/api/projects/{project['id']}/voice/generate")
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "script_not_approved"
+
+
+def test_voice_api_generates_audio_for_approved_script(
+    client: tuple[TestClient, ProjectStorage],
+) -> None:
+    test_client, storage = client
+    project = _create_project_with_generated_script(test_client, approved=True)
+
+    config_response = _save_mock_voice_config(test_client, project["id"])
+    assert config_response.status_code == 200
+    assert config_response.json()["audio_path"] is None
+
+    generate_response = test_client.post(f"/api/projects/{project['id']}/voice/generate")
+
+    assert generate_response.status_code == 200
+    voice_config = generate_response.json()
+    assert voice_config["audio_path"] == "audio/narration.wav"
+    assert voice_config["duration_sec"] > 0
+    assert voice_config["provider_metadata"]["provider"] == "mock"
+
+    project_path = storage.projects_root / project["id"]
+    audio_path = project_path / "audio" / "narration.wav"
+    voice_json_path = project_path / "audio" / "voice.json"
+    assert audio_path.exists()
+    assert audio_path.stat().st_size > 44
+    assert "api_key" not in voice_json_path.read_text(encoding="utf-8").lower()
+
+    audio_response = test_client.get(f"/api/projects/{project['id']}/voice/audio")
+    assert audio_response.status_code == 200
+    assert audio_response.headers["content-type"].startswith("audio/wav")
+    assert len(audio_response.content) > 44
+    assert test_client.get(f"/api/projects/{project['id']}").json()["status"] == "voice_ready"
+
+
 def _image_bytes(*, size: tuple[int, int]) -> bytes:
     output = io.BytesIO()
     Image.new("RGB", size, color=(42, 80, 112)).save(output, format="PNG")
     return output.getvalue()
+
+
+def _create_project_with_generated_script(test_client: TestClient, *, approved: bool) -> dict:
+    project = test_client.post(
+        "/api/projects",
+        json={"name": "Voice API", "target_language": "zh-CN", "target_duration_sec": 20},
+    ).json()
+    test_client.post(
+        f"/api/projects/{project['id']}/assets/image",
+        files={"file": ("source.png", _image_bytes(size=(1080, 1920)), "image/png")},
+    )
+    test_client.post(
+        f"/api/projects/{project['id']}/assets/text",
+        json={
+            "title": "Voice source",
+            "description": "Official source description for voice generation.",
+            "source_url": "https://example.test/source",
+            "credit": "Example Observatory",
+        },
+    )
+    generate_response = test_client.post(
+        f"/api/projects/{project['id']}/script/generate",
+        json={"user_draft": None},
+    )
+    assert generate_response.status_code == 200
+    if approved:
+        approve_response = test_client.post(f"/api/projects/{project['id']}/script/approve")
+        assert approve_response.status_code == 200
+    return project
+
+
+def _save_mock_voice_config(test_client: TestClient, project_id: str):
+    return test_client.put(
+        f"/api/projects/{project_id}/voice/config",
+        json={
+            "provider": "mock",
+            "voice_id": "mock-narrator",
+            "language": "zh-CN",
+            "speed": 1,
+            "volume_gain_db": 0,
+            "style": "clear",
+        },
+    )
 

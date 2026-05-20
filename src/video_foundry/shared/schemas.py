@@ -132,7 +132,37 @@ class Script(BaseDiskModel):
         return validate_project_id(value)
 
 
+SENSITIVE_CONFIG_KEY_FRAGMENTS = (
+    "api_key",
+    "apikey",
+    "access_token",
+    "auth_token",
+    "secret",
+    "password",
+    "credential",
+    "authorization",
+)
+
+
+def _find_sensitive_key(value: Any) -> str | None:
+    if isinstance(value, dict):
+        for key, nested in value.items():
+            key_text = str(key).lower()
+            if any(fragment in key_text for fragment in SENSITIVE_CONFIG_KEY_FRAGMENTS):
+                return str(key)
+            nested_key = _find_sensitive_key(nested)
+            if nested_key:
+                return nested_key
+    elif isinstance(value, list):
+        for nested in value:
+            nested_key = _find_sensitive_key(nested)
+            if nested_key:
+                return nested_key
+    return None
+
+
 class VoiceConfig(BaseDiskModel):
+    project_id: str | None = None
     provider: str = Field(default="mock", min_length=1, max_length=80)
     voice_id: str = Field(default="default", min_length=1, max_length=120)
     language: str = Field(default="zh-CN", min_length=2, max_length=32)
@@ -142,6 +172,34 @@ class VoiceConfig(BaseDiskModel):
     settings: dict[str, Any] = Field(default_factory=dict)
     audio_path: str | None = None
     duration_sec: float | None = Field(default=None, ge=0)
+    audio_format: str | None = Field(default=None, max_length=16)
+    provider_metadata: dict[str, Any] = Field(default_factory=dict)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+    @field_validator("project_id")
+    @classmethod
+    def validate_project_id(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return validate_project_id(value)
+
+    @field_validator("provider")
+    @classmethod
+    def validate_provider(cls, value: str) -> str:
+        return validate_identifier_value(value.strip(), "provider")
+
+    @field_validator("voice_id")
+    @classmethod
+    def validate_voice_id(cls, value: str) -> str:
+        return validate_identifier_value(value.strip(), "voice_id")
+
+    @field_validator("style")
+    @classmethod
+    def normalize_style(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
 
     @field_validator("audio_path")
     @classmethod
@@ -149,6 +207,21 @@ class VoiceConfig(BaseDiskModel):
         if value is None:
             return None
         return validate_relative_project_path_value(value)
+
+    @field_validator("audio_format")
+    @classmethod
+    def normalize_audio_format(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return validate_identifier_value(value.strip().lower(), "audio_format")
+
+    @field_validator("settings", "provider_metadata")
+    @classmethod
+    def reject_sensitive_config_keys(cls, value: dict[str, Any]) -> dict[str, Any]:
+        sensitive_key = _find_sensitive_key(value)
+        if sensitive_key:
+            raise ValueError(f"Voice config must not contain sensitive key: {sensitive_key}")
+        return value
 
 
 class BackgroundMusic(BaseDiskModel):
@@ -190,6 +263,7 @@ class AssetStatusSummary(BaseModel):
 class ProjectDetail(Project):
     asset: Asset | None = None
     background_music: BackgroundMusic | None = None
+    voice_config: VoiceConfig | None = None
     asset_status: AssetStatusSummary = Field(default_factory=AssetStatusSummary)
 
 

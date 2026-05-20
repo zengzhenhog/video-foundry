@@ -1,11 +1,25 @@
 {
+  "providers": [
+    {
+      "id": "mock",
+      "name": "Mock TTS",
+      "default": true
+    }
+  ],
   "voices": [
     {
       "id": "mock-narrator",
       "provider": "mock",
       "name": "Mock Narrator",
-      "language": "en-US",
+      "language": "zh-CN",
       "style": "clear"
+    },
+    {
+      "id": "mock-calm",
+      "provider": "mock",
+      "name": "Mock Calm",
+      "language": "en-US",
+      "style": "calm"
     }
   ]
 }

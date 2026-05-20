@@ -8,6 +8,7 @@ from video_foundry.audio.background_music import read_background_music_metadata
 from video_foundry.shared.schemas import DEFAULT_FORMATS, Project, ProjectDetail
 from video_foundry.shared.storage import ProjectStorage
 from video_foundry.sources.upload_importer import build_project_detail
+from video_foundry.voice.provider_registry import read_voice_config
 
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
@@ -54,5 +55,6 @@ def get_project(
         storage,
         project,
         background_music=read_background_music_metadata(storage, project.id),
+        voice_config=read_voice_config(storage, project.id),
     )
 
