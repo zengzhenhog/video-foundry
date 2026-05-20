@@ -2,7 +2,7 @@
 
 Version: 0.1  
 Date: 2026-05-19  
-Target directory: `F:\code\auto-image`  
+Target directory: `F:\code\video-foundry`  
 Status: Draft for implementation planning
 
 ## 1. Overview
@@ -330,11 +330,11 @@ The review UI does not need to be a full editor. It only needs enough control to
 ## 7. Project Directory Layout
 
 ```text
-auto-image/
+video-foundry/
   docs/
     system-design.md
   src/
-    auto_image/
+    video_foundry/
       api/
       review_ui/
       renderer/
@@ -638,14 +638,14 @@ Manual review remains required for:
 
 Use a Python project structure:
 
-- `src/auto_image/api`: FastAPI API service.
-- `src/auto_image/review_ui`: simple review UI or server-rendered review pages.
-- `src/auto_image/renderer`: Python frame renderer using Pillow/OpenCV.
-- `src/auto_image/storyboard`: crop and shot planning logic.
-- `src/auto_image/voice`: TTS provider adapters.
-- `src/auto_image/ffmpeg`: FFmpeg command builders and assembly helpers.
-- `src/auto_image/sources`: NASA and manual import logic.
-- `src/auto_image/shared`: schemas, config loading, and shared types.
+- `src/video_foundry/api`: FastAPI API service.
+- `src/video_foundry/review_ui`: simple review UI or server-rendered review pages.
+- `src/video_foundry/renderer`: Python frame renderer using Pillow/OpenCV.
+- `src/video_foundry/storyboard`: crop and shot planning logic.
+- `src/video_foundry/voice`: TTS provider adapters.
+- `src/video_foundry/ffmpeg`: FFmpeg command builders and assembly helpers.
+- `src/video_foundry/sources`: NASA and manual import logic.
+- `src/video_foundry/shared`: schemas, config loading, and shared types.
 
 Use Pydantic or JSON Schema for all pipeline artifacts. This keeps generated LLM output constrained and reviewable.
 
@@ -671,3 +671,4 @@ The MVP is successful when a user can:
 6. Render a 45-60 second video with subtitles and credit.
 7. Export both vertical and horizontal MP4 files.
 8. Verify that the astronomical image content was not AI-generated or visually modified.
+

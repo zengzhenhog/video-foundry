@@ -2,9 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from auto_image.shared.errors import AppError
-from auto_image.shared.paths import PROJECT_METADATA_FILE, PROJECT_SUBDIRECTORIES, project_dir
-from auto_image.shared.storage import ProjectStorage
+from video_foundry.shared.errors import AppError
+from video_foundry.shared.paths import PROJECT_METADATA_FILE, PROJECT_SUBDIRECTORIES, project_dir
+from video_foundry.shared.storage import ProjectStorage
 
 
 def test_create_project_writes_project_json_and_directory_skeleton(tmp_path: Path) -> None:
@@ -67,3 +67,4 @@ def test_read_project_reports_corrupted_json_without_absolute_path(tmp_path: Pat
 
     assert error.value.detail.code == "project_metadata_invalid"
     assert str(tmp_path) not in error.value.detail.message
+

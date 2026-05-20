@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from auto_image.shared.paths import (
+from video_foundry.shared.paths import (
     PROJECT_METADATA_FILE,
     PROJECT_SUBDIRECTORIES,
     project_dir,
@@ -58,3 +58,4 @@ def test_relative_project_path_rejects_unsafe_paths(relative_path: str, tmp_path
 
     with pytest.raises(ValueError):
         validate_relative_project_path_value(relative_path)
+

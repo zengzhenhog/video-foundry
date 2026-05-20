@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from auto_image.api.main import app
+from video_foundry.api.main import app
 
 
 def test_app_imports_and_health_endpoint_returns_ok() -> None:
@@ -14,3 +14,4 @@ def test_app_imports_and_health_endpoint_returns_ok() -> None:
         "version": "0.1.0",
         "status": "ok",
     }
+

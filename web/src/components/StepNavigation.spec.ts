@@ -1,0 +1,21 @@
+import { RouterLinkStub, mount } from "@vue/test-utils";
+import { describe, expect, it } from "vitest";
+
+import StepNavigation from "./StepNavigation.vue";
+
+describe("StepNavigation", () => {
+  it("显示项目流程并高亮素材步骤", () => {
+    const wrapper = mount(StepNavigation, {
+      props: { current: "assets", projectId: "prj_123" },
+      global: {
+        stubs: {
+          RouterLink: RouterLinkStub,
+        },
+      },
+    });
+
+    expect(wrapper.text()).toContain("项目");
+    expect(wrapper.text()).toContain("素材");
+    expect(wrapper.find(".step-navigation__item--active").text()).toBe("素材");
+  });
+});

@@ -2,7 +2,7 @@
 
 版本：0.1  
 日期：2026-05-19  
-目标目录：`F:\code\auto-image`  
+目标目录：`F:\code\video-foundry`  
 来源文档：`docs/system-design.md`
 
 ## 1. 项目定位
@@ -103,7 +103,7 @@ Source Import
 
 ```text
 src/
-  auto_image/
+  video_foundry/
     api/
     review_ui/
     renderer/
@@ -121,14 +121,14 @@ tests/
 
 推荐模块职责：
 
-- `src/auto_image/api`：FastAPI API 服务。
-- `src/auto_image/review_ui`：简单审核 UI 或服务端渲染审核页面。
-- `src/auto_image/renderer`：基于 Pillow/OpenCV 的 Python 帧渲染器。
-- `src/auto_image/storyboard`：裁切和分镜规划逻辑。
-- `src/auto_image/voice`：TTS provider 适配器。
-- `src/auto_image/ffmpeg`：FFmpeg 命令构建和合成辅助逻辑。
-- `src/auto_image/sources`：NASA 和手动导入逻辑。
-- `src/auto_image/shared`：schema、配置加载和共享类型。
+- `src/video_foundry/api`：FastAPI API 服务。
+- `src/video_foundry/review_ui`：简单审核 UI 或服务端渲染审核页面。
+- `src/video_foundry/renderer`：基于 Pillow/OpenCV 的 Python 帧渲染器。
+- `src/video_foundry/storyboard`：裁切和分镜规划逻辑。
+- `src/video_foundry/voice`：TTS provider 适配器。
+- `src/video_foundry/ffmpeg`：FFmpeg 命令构建和合成辅助逻辑。
+- `src/video_foundry/sources`：NASA 和手动导入逻辑。
+- `src/video_foundry/shared`：schema、配置加载和共享类型。
 
 ### 4.2 渲染技术
 
@@ -694,3 +694,4 @@ MVP 成功时，用户应能完成以下操作：
 ## 17. 一句话总结
 
 这个系统的本质是一个可信的天文短视频生产流水线：它用 AI 提高文案、分镜和旁白效率，但用严格的数据模型、人工审核和渲染约束确保官方图像不被篡改、科学表述不被编造、来源署名始终可追溯。
+

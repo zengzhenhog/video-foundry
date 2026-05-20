@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from auto_image.shared.schemas import (
+from video_foundry.shared.schemas import (
     Asset,
     BackgroundMusic,
     Project,
@@ -152,3 +152,4 @@ def test_quality_report_is_disk_schema_and_project_scoped() -> None:
 
     with pytest.raises(ValidationError):
         QualityReport(project_id="../project", passed=False)
+

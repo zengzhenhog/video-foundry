@@ -1,13 +1,15 @@
 from collections.abc import Iterator
+import io
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from PIL import Image
 
-from auto_image.api.dependencies import get_project_storage
-from auto_image.api.main import create_app
-from auto_image.shared.paths import PROJECT_METADATA_FILE, PROJECT_SUBDIRECTORIES
-from auto_image.shared.storage import ProjectStorage
+from video_foundry.api.dependencies import get_project_storage
+from video_foundry.api.main import create_app
+from video_foundry.shared.paths import PROJECT_METADATA_FILE, PROJECT_SUBDIRECTORIES
+from video_foundry.shared.storage import ProjectStorage
 
 
 @pytest.fixture
@@ -88,3 +90,104 @@ def test_project_api_reports_corrupted_json(client: tuple[TestClient, ProjectSto
     assert response.status_code == 500
     assert response.json()["error"]["code"] == "project_metadata_invalid"
     assert str(storage.projects_root) not in response.text
+
+
+def test_asset_upload_flow_persists_metadata_and_status_summary(
+    client: tuple[TestClient, ProjectStorage],
+) -> None:
+    test_client, storage = client
+    project = test_client.post("/api/projects", json={"name": "Assets"}).json()
+    image_bytes = _image_bytes(size=(1080, 1920))
+
+    image_response = test_client.post(
+        f"/api/projects/{project['id']}/assets/image",
+        files={"file": ("source.png", image_bytes, "image/png")},
+    )
+
+    assert image_response.status_code == 201
+    image_asset = image_response.json()
+    assert image_asset["image_original_path"] == "assets/original.png"
+    assert image_asset["image_preview_path"] == "assets/preview.jpg"
+    assert image_asset["width"] == 1080
+    assert image_asset["height"] == 1920
+    assert (storage.projects_root / project["id"] / "metadata" / "asset.json").exists()
+
+    missing_credit_response = test_client.post(
+        f"/api/projects/{project['id']}/assets/text",
+        json={
+            "title": "Solar loop",
+            "description": "A bright coronal loop over the limb.",
+            "source_url": "https://example.test/image",
+            "credit": "",
+        },
+    )
+    assert missing_credit_response.status_code == 200
+    draft_detail = test_client.get(f"/api/projects/{project['id']}").json()
+    assert draft_detail["status"] == "draft"
+    assert draft_detail["asset_status"]["has_source_url"] is True
+    assert draft_detail["asset_status"]["has_credit"] is False
+    assert draft_detail["asset_status"]["ready_for_script"] is False
+
+    complete_text_response = test_client.post(
+        f"/api/projects/{project['id']}/assets/text",
+        json={
+            "title": "Solar loop",
+            "description": "A bright coronal loop over the limb.",
+            "source_url": "https://example.test/image",
+            "credit": "Example Observatory / Public Domain",
+        },
+    )
+    assert complete_text_response.status_code == 200
+
+    ready_detail = test_client.get(f"/api/projects/{project['id']}").json()
+    assert ready_detail["status"] == "asset_ready"
+    assert ready_detail["asset_status"]["ready_for_script"] is True
+    assert ready_detail["asset"]["credit"] == "Example Observatory / Public Domain"
+
+    preview_response = test_client.get(f"/api/projects/{project['id']}/assets/preview")
+    assert preview_response.status_code == 200
+    assert preview_response.headers["content-type"].startswith("image/jpeg")
+
+
+def test_background_music_upload_is_optional_for_asset_readiness(
+    client: tuple[TestClient, ProjectStorage],
+) -> None:
+    test_client, storage = client
+    project = test_client.post("/api/projects", json={"name": "Optional music"}).json()
+
+    test_client.post(
+        f"/api/projects/{project['id']}/assets/image",
+        files={"file": ("source.jpg", _image_bytes(size=(1080, 1920)), "image/jpeg")},
+    )
+    test_client.post(
+        f"/api/projects/{project['id']}/assets/text",
+        json={
+            "title": "No music needed",
+            "description": "The source image has enough context.",
+            "source_url": "https://example.test/image",
+            "credit": "Example Observatory",
+        },
+    )
+    detail_without_music = test_client.get(f"/api/projects/{project['id']}").json()
+    assert detail_without_music["status"] == "asset_ready"
+    assert detail_without_music["asset_status"]["has_background_music"] is False
+    assert detail_without_music["asset_status"]["ready_for_script"] is True
+
+    music_response = test_client.post(
+        f"/api/projects/{project['id']}/assets/background-music",
+        files={"file": ("bed.mp3", b"ID3 audio bytes", "audio/mpeg")},
+    )
+    assert music_response.status_code == 201
+    assert music_response.json()["file_path"] == "audio/background_music.mp3"
+    assert (storage.projects_root / project["id"] / "audio" / "background_music.mp3").exists()
+
+    detail_with_music = test_client.get(f"/api/projects/{project['id']}").json()
+    assert detail_with_music["asset_status"]["has_background_music"] is True
+    assert detail_with_music["background_music"]["original_filename"] == "bed.mp3"
+
+
+def _image_bytes(*, size: tuple[int, int]) -> bytes:
+    output = io.BytesIO()
+    Image.new("RGB", size, color=(42, 80, 112)).save(output, format="PNG")
+    return output.getvalue()
+
