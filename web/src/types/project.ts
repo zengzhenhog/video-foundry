@@ -133,6 +133,61 @@ export interface Script {
   approved_at: string | null;
 }
 
+export interface StoryboardShot {
+  id: string;
+  start_sec: number;
+  end_sec: number;
+  type: string;
+  crop_start: [number, number, number, number];
+  crop_end: [number, number, number, number];
+  easing: string;
+  caption: string;
+}
+
+export interface Storyboard {
+  schema_version: "1.0";
+  project_id: string;
+  version: number;
+  format: string;
+  fps: number;
+  duration_sec: number;
+  safe_area: Record<string, number>;
+  shots: StoryboardShot[];
+  approved: boolean;
+  updated_at: string;
+}
+
+export interface StoryboardGenerateRequest {
+  format: string | null;
+}
+
+export interface StoryboardUpdateRequest {
+  format: string;
+  fps: number;
+  duration_sec: number;
+  safe_area: Record<string, number>;
+  shots: StoryboardShot[];
+}
+
+export interface SubtitleCue {
+  index: number;
+  start_sec: number;
+  end_sec: number;
+  text: string;
+}
+
+export interface SubtitlesManifest {
+  schema_version: "1.0";
+  project_id: string;
+  source: "script_segments" | "storyboard";
+  storyboard_version: number | null;
+  srt_path: string;
+  vtt_path: string;
+  cues: SubtitleCue[];
+  stale: boolean;
+  updated_at: string;
+}
+
 export interface ProjectListResponse {
   projects: Project[];
 }

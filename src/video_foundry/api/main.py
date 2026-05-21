@@ -6,6 +6,8 @@ from fastapi.responses import JSONResponse
 from video_foundry.api.routes.assets import router as assets_router
 from video_foundry.api.routes.projects import router as projects_router
 from video_foundry.api.routes.script import router as script_router
+from video_foundry.api.routes.storyboard import router as storyboard_router
+from video_foundry.api.routes.subtitles import router as subtitles_router
 from video_foundry.api.routes.voice import global_router as voice_global_router
 from video_foundry.api.routes.voice import project_router as voice_project_router
 from video_foundry.shared.config import get_settings
@@ -51,8 +53,10 @@ def create_app() -> FastAPI:
     app.include_router(script_router)
     app.include_router(voice_global_router)
     app.include_router(voice_project_router)
+    app.include_router(storyboard_router)
+    app.include_router(subtitles_router)
 
-    # Future phases register storyboard, job, and render routers here.
+    # Future phases register job and render routers here.
     @app.get("/api/health", tags=["system"])
     def health() -> dict[str, str]:
         return {

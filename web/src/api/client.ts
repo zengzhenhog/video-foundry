@@ -9,6 +9,10 @@ import type {
   Script,
   ScriptGenerateRequest,
   ScriptUpdateRequest,
+  Storyboard,
+  StoryboardGenerateRequest,
+  StoryboardUpdateRequest,
+  SubtitlesManifest,
   VoiceConfig,
   VoiceConfigRequest,
   VoicePresetsResponse,
@@ -62,6 +66,16 @@ const ERROR_MESSAGES: Record<string, string> = {
   script_provider_output_invalid: "脚本生成结果格式无效。",
   script_segments_required: "脚本至少需要一个段落。",
   asset_not_ready_for_script: "请先补齐图片、描述、来源 URL 和署名。",
+  storyboard_crop_invalid: "分镜裁切坐标无效。",
+  storyboard_duration_invalid: "分镜时长无效。",
+  storyboard_metadata_invalid: "分镜元数据无效。",
+  storyboard_not_found: "尚未生成或保存分镜。",
+  storyboard_shots_required: "分镜至少需要一个镜头。",
+  storyboard_timeline_invalid: "分镜时间线必须连续且不重叠。",
+  storyboard_zoom_exceeded: "裁切缩放超过当前输出规格限制。",
+  subtitle_cues_required: "字幕至少需要一条内容。",
+  subtitles_metadata_invalid: "字幕元数据无效。",
+  subtitles_not_found: "尚未生成字幕。",
   unsupported_background_music_format: "不支持该背景音乐格式。",
   unsupported_tts_provider: "不支持或未启用该语音服务。",
   unsupported_image_format: "不支持该图片格式。",
@@ -192,6 +206,47 @@ export function generateVoice(projectId: string): Promise<VoiceConfig> {
 export function voiceAudioUrl(projectId: string, updatedAt?: string | null): string {
   const query = updatedAt ? `?v=${encodeURIComponent(updatedAt)}` : "";
   return `${API_BASE_URL}/api/projects/${encodeURIComponent(projectId)}/voice/audio${query}`;
+}
+
+export function generateStoryboard(
+  projectId: string,
+  payload: StoryboardGenerateRequest,
+): Promise<Storyboard> {
+  return request<Storyboard>(`/api/projects/${encodeURIComponent(projectId)}/storyboard/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getStoryboard(projectId: string): Promise<Storyboard> {
+  return request<Storyboard>(`/api/projects/${encodeURIComponent(projectId)}/storyboard`);
+}
+
+export function saveStoryboard(
+  projectId: string,
+  payload: StoryboardUpdateRequest,
+): Promise<Storyboard> {
+  return request<Storyboard>(`/api/projects/${encodeURIComponent(projectId)}/storyboard`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function approveStoryboard(projectId: string): Promise<Storyboard> {
+  return request<Storyboard>(`/api/projects/${encodeURIComponent(projectId)}/storyboard/approve`, {
+    method: "POST",
+  });
+}
+
+export function generateSubtitles(projectId: string): Promise<SubtitlesManifest> {
+  return request<SubtitlesManifest>(
+    `/api/projects/${encodeURIComponent(projectId)}/subtitles/generate`,
+    {
+      method: "POST",
+    },
+  );
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {

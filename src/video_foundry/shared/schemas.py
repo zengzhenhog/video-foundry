@@ -335,6 +335,42 @@ class Storyboard(BaseDiskModel):
         return value
 
 
+class SubtitleCue(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    index: int = Field(ge=1)
+    start_sec: float = Field(ge=0)
+    end_sec: float = Field(ge=0)
+    text: str = ""
+
+    @model_validator(mode="after")
+    def validate_time_order(self) -> SubtitleCue:
+        if self.end_sec <= self.start_sec:
+            raise ValueError("Subtitle cue end_sec must be greater than start_sec.")
+        return self
+
+
+class SubtitlesManifest(BaseDiskModel):
+    project_id: str
+    source: Literal["script_segments", "storyboard"] = "script_segments"
+    storyboard_version: int | None = Field(default=None, ge=1)
+    srt_path: str = "subtitles/subtitles.srt"
+    vtt_path: str = "subtitles/subtitles.vtt"
+    cues: list[SubtitleCue] = Field(default_factory=list)
+    stale: bool = False
+    updated_at: datetime = Field(default_factory=utc_now)
+
+    @field_validator("project_id")
+    @classmethod
+    def validate_project_id(cls, value: str) -> str:
+        return validate_project_id(value)
+
+    @field_validator("srt_path", "vtt_path")
+    @classmethod
+    def validate_output_path(cls, value: str) -> str:
+        return validate_relative_project_path_value(value)
+
+
 class RenderJob(BaseDiskModel):
     id: str
     project_id: str

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 defineProps<{
   projectId?: string;
-  current: "projects" | "assets" | "script" | "voice" | "render";
+  current: "projects" | "assets" | "script" | "voice" | "storyboard" | "render";
 }>();
 
 const steps = [
@@ -9,6 +9,7 @@ const steps = [
   { key: "assets", label: "素材" },
   { key: "script", label: "脚本" },
   { key: "voice", label: "旁白" },
+  { key: "storyboard", label: "分镜" },
   { key: "render", label: "渲染" },
 ] as const;
 
@@ -33,6 +34,9 @@ function stepTo(key: StepKey, projectId?: string): string {
   }
   if (key === "voice" && projectId) {
     return `/projects/${projectId}/voice`;
+  }
+  if (key === "storyboard" && projectId) {
+    return `/projects/${projectId}/storyboard`;
   }
   return "#";
 }

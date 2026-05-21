@@ -12,6 +12,8 @@ from video_foundry.shared.schemas import (
     ScriptSegment,
     Storyboard,
     StoryboardShot,
+    SubtitleCue,
+    SubtitlesManifest,
     VoiceConfig,
 )
 
@@ -135,6 +137,20 @@ def test_storyboard_safe_area_and_format_validation() -> None:
 
     with pytest.raises(ValidationError):
         Storyboard(project_id="project_1", duration_sec=10, format="../format")
+
+
+def test_subtitles_manifest_uses_relative_paths_and_positive_cue_timing() -> None:
+    cue = SubtitleCue(index=1, start_sec=0, end_sec=2.5, text="Caption")
+    manifest = SubtitlesManifest(project_id="project_1", cues=[cue], storyboard_version=2)
+
+    assert manifest.schema_version == "1.0"
+    assert manifest.srt_path == "subtitles/subtitles.srt"
+
+    with pytest.raises(ValidationError):
+        SubtitleCue(index=1, start_sec=2, end_sec=2, text="No duration")
+
+    with pytest.raises(ValidationError):
+        SubtitlesManifest(project_id="project_1", srt_path="../subtitles.srt")
 
 
 def test_render_job_validates_id_progress_and_output_paths() -> None:

@@ -337,6 +337,81 @@ def test_voice_api_generates_audio_for_approved_script(
     assert test_client.get(f"/api/projects/{project['id']}").json()["status"] == "voice_ready"
 
 
+def test_storyboard_generation_requires_approved_script(
+    client: tuple[TestClient, ProjectStorage],
+) -> None:
+    test_client, _storage = client
+    project = _create_project_with_generated_script(test_client, approved=False)
+
+    response = test_client.post(f"/api/projects/{project['id']}/storyboard/generate", json={})
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "script_not_approved"
+
+
+def test_storyboard_api_generates_approves_and_subtitles(
+    client: tuple[TestClient, ProjectStorage],
+) -> None:
+    test_client, storage = client
+    project = _create_project_with_generated_script(test_client, approved=True)
+
+    generate_response = test_client.post(f"/api/projects/{project['id']}/storyboard/generate", json={})
+
+    assert generate_response.status_code == 200
+    storyboard = generate_response.json()
+    assert storyboard["approved"] is False
+    assert storyboard["shots"][0]["start_sec"] == 0
+    assert (storage.projects_root / project["id"] / "storyboard" / "storyboard.json").exists()
+    assert test_client.get(f"/api/projects/{project['id']}").json()["status"] == "storyboard_ready"
+
+    approve_response = test_client.post(f"/api/projects/{project['id']}/storyboard/approve")
+    assert approve_response.status_code == 200
+    approved = approve_response.json()
+    assert approved["approved"] is True
+    assert test_client.get(f"/api/projects/{project['id']}").json()["status"] == "storyboard_approved"
+
+    subtitles_response = test_client.post(f"/api/projects/{project['id']}/subtitles/generate")
+    assert subtitles_response.status_code == 200
+    manifest = subtitles_response.json()
+    assert manifest["source"] == "storyboard"
+    assert manifest["storyboard_version"] == approved["version"]
+    assert (storage.projects_root / project["id"] / "subtitles" / "subtitles.srt").exists()
+    assert (storage.projects_root / project["id"] / "subtitles" / "subtitles.vtt").exists()
+
+
+def test_editing_approved_storyboard_marks_subtitles_stale(
+    client: tuple[TestClient, ProjectStorage],
+) -> None:
+    test_client, storage = client
+    project = _create_project_with_generated_script(test_client, approved=True)
+    generated = test_client.post(f"/api/projects/{project['id']}/storyboard/generate", json={}).json()
+    test_client.post(f"/api/projects/{project['id']}/storyboard/approve")
+    subtitles_response = test_client.post(f"/api/projects/{project['id']}/subtitles/generate")
+    assert subtitles_response.status_code == 200
+
+    edited = {
+        "format": generated["format"],
+        "fps": generated["fps"],
+        "duration_sec": generated["duration_sec"],
+        "safe_area": generated["safe_area"],
+        "shots": [
+            {
+                **shot,
+                "caption": f"{shot['caption']} Edited" if index == 0 else shot["caption"],
+            }
+            for index, shot in enumerate(generated["shots"])
+        ],
+    }
+    save_response = test_client.put(f"/api/projects/{project['id']}/storyboard", json=edited)
+
+    assert save_response.status_code == 200
+    detail = test_client.get(f"/api/projects/{project['id']}").json()
+    assert detail["status"] == "storyboard_ready"
+    assert detail["stale_artifacts"]["subtitles"] is True
+    manifest = storage.read_json(project["id"], "subtitles/subtitles.json")
+    assert manifest["stale"] is True
+
+
 def _image_bytes(*, size: tuple[int, int]) -> bytes:
     output = io.BytesIO()
     Image.new("RGB", size, color=(42, 80, 112)).save(output, format="PNG")

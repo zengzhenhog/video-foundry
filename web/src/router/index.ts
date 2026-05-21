@@ -4,6 +4,7 @@ import ProjectAssets from "../pages/ProjectAssets.vue";
 import ProjectCreate from "../pages/ProjectCreate.vue";
 import ProjectList from "../pages/ProjectList.vue";
 import ProjectScript from "../pages/ProjectScript.vue";
+import ProjectStoryboard from "../pages/ProjectStoryboard.vue";
 import ProjectVoice from "../pages/ProjectVoice.vue";
 
 const router = createRouter({
@@ -32,6 +33,12 @@ const router = createRouter({
       path: "/projects/:id/voice",
       name: "project-voice",
       component: ProjectVoice,
+      props: true,
+    },
+    {
+      path: "/projects/:id/storyboard",
+      name: "project-storyboard",
+      component: ProjectStoryboard,
       props: true,
     },
   ],
