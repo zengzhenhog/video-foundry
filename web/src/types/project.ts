@@ -219,6 +219,70 @@ export interface RenderManifest {
   updated_at: string;
 }
 
+export type JobStatus = "pending" | "running" | "succeeded" | "failed" | "cancelled";
+
+export interface JobError {
+  code: string;
+  step: string;
+  reason: string;
+  retryable: boolean;
+  suggested_correction: string | null;
+  details: Record<string, unknown>;
+}
+
+export interface JobRecord {
+  schema_version: "1.0";
+  id: string;
+  project_id: string;
+  type: string;
+  status: JobStatus;
+  progress: number;
+  summary: string;
+  created_at: string;
+  started_at: string | null;
+  updated_at: string;
+  finished_at: string | null;
+  error: JobError | null;
+  output_paths: string[];
+}
+
+export interface JobSubmitResponse {
+  job_id: string;
+  job: JobRecord;
+}
+
+export interface PipelineLogEntry {
+  timestamp: string;
+  project_id: string;
+  job_id: string | null;
+  step: string;
+  status: JobStatus;
+  summary: string;
+  details: Record<string, unknown>;
+}
+
+export interface ProjectLogsResponse {
+  project_id: string;
+  entries: PipelineLogEntry[];
+  error: JobError | null;
+}
+
+export interface QualityCheck {
+  name: string;
+  passed: boolean;
+  details: Record<string, unknown>;
+}
+
+export interface QualityReport {
+  schema_version: "1.0";
+  project_id: string;
+  passed: boolean;
+  checks: QualityCheck[];
+  warnings: string[];
+  errors: string[];
+  created_at: string;
+}
+
 export interface ProjectListResponse {
   projects: Project[];
 }

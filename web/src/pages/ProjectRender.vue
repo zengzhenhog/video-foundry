@@ -5,24 +5,37 @@ import {
   ApiError,
   exportProject,
   exportVideoUrl,
+  getProjectLogs,
+  getQualityReport,
   renderPreviewUrl,
   renderProject,
 } from "../api/client";
+import JobStatusPanel from "../components/JobStatusPanel.vue";
+import QualityReportPanel from "../components/QualityReportPanel.vue";
 import StepNavigation from "../components/StepNavigation.vue";
 import VideoPreview from "../components/VideoPreview.vue";
+import { useJobPolling } from "../composables/useJobPolling";
 import { useProject } from "../composables/useProject";
-import type { ProjectStatus, RenderManifest } from "../types/project";
+import type { JobRecord, ProjectLogsResponse, ProjectStatus, QualityReport } from "../types/project";
 
 const props = defineProps<{
   id: string;
 }>();
 
 const { project, isLoading: isProjectLoading, error: projectError, loadProject } = useProject(props.id);
-const manifest = ref<RenderManifest | null>(null);
-const isRendering = ref(false);
-const isExporting = ref(false);
+const qualityReport = ref<QualityReport | null>(null);
+const logs = ref<ProjectLogsResponse | null>(null);
+const isQualityLoading = ref(false);
+const qualityError = ref("");
+const activeJobType = ref<string | null>(null);
+const previewVersion = ref<string | null>(null);
+const finalVersion = ref<string | null>(null);
 const actionMessage = ref("");
 const actionError = ref("");
+
+const { job, error: jobPollingError, isPolling, start: startJobPolling } = useJobPolling({
+  onFinished: handleJobFinished,
+});
 
 const statusLabels: Record<ProjectStatus, string> = {
   draft: "草稿",
@@ -37,50 +50,110 @@ const statusLabels: Record<ProjectStatus, string> = {
   failed: "失败",
 };
 
-const isBusy = computed(() => isProjectLoading.value || isRendering.value || isExporting.value);
+const isBusy = computed(() => isProjectLoading.value || isPolling.value);
 const hasApprovedStoryboard = computed(() =>
-  Boolean(project.value && ["storyboard_approved", "voice_ready", "rendered", "exported"].includes(project.value.status)),
+  Boolean(
+    project.value
+      && ["storyboard_approved", "voice_ready", "rendered", "exported", "failed"].includes(project.value.status),
+  ),
 );
 const hasVoice = computed(() => Boolean(project.value?.voice_config?.audio_path));
 const hasCredit = computed(() => Boolean(project.value?.asset?.credit?.trim()));
 const hasRenderStale = computed(() => Boolean(project.value?.stale_artifacts.render));
 const canRender = computed(() => !isBusy.value && hasApprovedStoryboard.value && hasVoice.value && hasCredit.value);
+const isRendering = computed(() => isPolling.value && activeJobType.value === "render_preview");
+const isExporting = computed(() => isPolling.value && activeJobType.value === "export_final");
+const hasPreviewOutput = computed(() =>
+  Boolean(previewVersion.value || (project.value && ["rendered", "exported"].includes(project.value.status))),
+);
+const hasFinalOutput = computed(() => Boolean(finalVersion.value || project.value?.status === "exported"));
 const previewSource = computed(() =>
-  manifest.value?.preview_output_path ? renderPreviewUrl(props.id, manifest.value.updated_at) : "",
+  hasPreviewOutput.value ? renderPreviewUrl(props.id, previewVersion.value ?? project.value?.updated_at) : "",
 );
 const finalSource = computed(() =>
-  manifest.value?.final_output_path ? exportVideoUrl(props.id, manifest.value.updated_at) : "",
+  hasFinalOutput.value ? exportVideoUrl(props.id, finalVersion.value ?? project.value?.updated_at) : "",
 );
+const recentLogEntries = computed(() => logs.value?.entries.slice(-6).reverse() ?? []);
 
-onMounted(loadProject);
+onMounted(async () => {
+  await loadProject();
+  await Promise.all([loadLogs(), loadQualityReport()]);
+});
 
 async function renderPreview(): Promise<void> {
-  isRendering.value = true;
   actionMessage.value = "";
   actionError.value = "";
   try {
-    manifest.value = await renderProject(props.id);
-    await loadProject();
-    actionMessage.value = "预览视频已生成。";
+    const response = await renderProject(props.id);
+    activeJobType.value = response.job.type;
+    actionMessage.value = "预览任务已提交。";
+    await startJobPolling(response.job_id, response.job);
   } catch (caught) {
     actionError.value = caught instanceof ApiError ? caught.message : "渲染失败。";
-  } finally {
-    isRendering.value = false;
   }
 }
 
 async function exportFinal(): Promise<void> {
-  isExporting.value = true;
   actionMessage.value = "";
   actionError.value = "";
   try {
-    manifest.value = await exportProject(props.id);
-    await loadProject();
-    actionMessage.value = "最终视频已导出。";
+    const response = await exportProject(props.id);
+    activeJobType.value = response.job.type;
+    actionMessage.value = "导出任务已提交。";
+    await startJobPolling(response.job_id, response.job);
   } catch (caught) {
     actionError.value = caught instanceof ApiError ? caught.message : "导出失败。";
+  }
+}
+
+async function handleJobFinished(doneJob: JobRecord): Promise<void> {
+  await Promise.all([loadProject(), loadLogs()]);
+  if (doneJob.status === "succeeded") {
+    if (doneJob.type === "render_preview") {
+      previewVersion.value = doneJob.updated_at;
+      actionMessage.value = "预览视频已生成。";
+    }
+    if (doneJob.type === "export_final") {
+      finalVersion.value = doneJob.updated_at;
+      actionMessage.value = "最终视频已导出。";
+      await loadQualityReport();
+    }
+    return;
+  }
+  if (doneJob.status === "failed") {
+    actionError.value = doneJob.error?.reason ?? "任务失败。";
+  }
+}
+
+async function retryLastJob(): Promise<void> {
+  if (job.value?.type === "export_final") {
+    await exportFinal();
+    return;
+  }
+  await renderPreview();
+}
+
+async function loadLogs(): Promise<void> {
+  try {
+    logs.value = await getProjectLogs(props.id);
+  } catch {
+    logs.value = null;
+  }
+}
+
+async function loadQualityReport(): Promise<void> {
+  isQualityLoading.value = true;
+  qualityError.value = "";
+  try {
+    qualityReport.value = await getQualityReport(props.id);
+  } catch (caught) {
+    if (caught instanceof ApiError && caught.code === "quality_report_not_found") {
+      qualityReport.value = null;
+    } else {
+      qualityError.value = caught instanceof ApiError ? caught.message : "质量报告读取失败。";
+    }
   } finally {
-    isExporting.value = false;
+    isQualityLoading.value = false;
   }
 }
 </script>
@@ -144,32 +217,31 @@ async function exportFinal(): Promise<void> {
       </p>
       <p v-if="actionMessage" class="form-message form-message--success">{{ actionMessage }}</p>
       <p v-if="actionError" class="form-message form-message--error">{{ actionError }}</p>
+      <p v-if="jobPollingError" class="form-message form-message--error">{{ jobPollingError }}</p>
 
-      <section v-if="manifest" class="panel">
+      <JobStatusPanel :job="job" :is-polling="isPolling" @retry="retryLastJob" />
+
+      <QualityReportPanel :report="qualityReport" :is-loading="isQualityLoading" :error="qualityError" />
+
+      <section class="panel">
         <div class="panel__header">
           <div>
-            <p class="eyebrow">Manifest</p>
-            <h2>{{ manifest.format }}</h2>
+            <p class="eyebrow">日志</p>
+            <h2>{{ logs?.error ? "最近失败" : "Pipeline" }}</h2>
           </div>
         </div>
-        <dl class="status-grid status-grid--wide">
-          <div>
-            <dt>尺寸</dt>
-            <dd>{{ manifest.width }} x {{ manifest.height }}</dd>
-          </div>
-          <div>
-            <dt>帧数</dt>
-            <dd>{{ manifest.frame_count }}</dd>
-          </div>
-          <div>
-            <dt>Storyboard</dt>
-            <dd>v{{ manifest.storyboard_version }}</dd>
-          </div>
-          <div>
-            <dt>Credit</dt>
-            <dd>{{ manifest.credit_text }}</dd>
-          </div>
-        </dl>
+        <p v-if="logs?.error" class="form-message form-message--error">
+          {{ logs.error.step }}：{{ logs.error.reason }}
+        </p>
+        <ul v-if="recentLogEntries.length" class="log-list">
+          <li v-for="entry in recentLogEntries" :key="`${entry.timestamp}-${entry.step}-${entry.summary}`">
+            <span>{{ new Date(entry.timestamp).toLocaleTimeString() }}</span>
+            <strong>{{ entry.step }}</strong>
+            <em>{{ entry.status }}</em>
+            <p>{{ entry.summary }}</p>
+          </li>
+        </ul>
+        <p v-else class="muted">暂无日志。</p>
       </section>
 
       <div class="render-videos">

@@ -415,19 +415,22 @@ def test_editing_approved_storyboard_marks_subtitles_stale(
 def test_render_api_rejects_unapproved_storyboard(
     client: tuple[TestClient, ProjectStorage],
 ) -> None:
-    test_client, _storage = client
+    test_client, storage = client
     project = _create_project_ready_for_render(test_client, approve_storyboard=False)
 
     response = test_client.post(f"/api/projects/{project['id']}/render")
 
-    assert response.status_code == 409
-    assert response.json()["error"]["code"] == "storyboard_not_approved"
+    assert response.status_code == 202
+    job = test_client.get(f"/api/jobs/{response.json()['job_id']}").json()
+    assert job["status"] == "failed"
+    assert job["error"]["code"] == "storyboard_not_approved"
+    assert storage.read_json(project["id"], "logs/error.json")["code"] == "storyboard_not_approved"
 
 
 def test_render_api_rejects_missing_credit(
     client: tuple[TestClient, ProjectStorage],
 ) -> None:
-    test_client, _storage = client
+    test_client, storage = client
     project = _create_project_ready_for_render(test_client, approve_storyboard=True)
     current_asset = test_client.get(f"/api/projects/{project['id']}").json()["asset"]
     save_response = test_client.post(
@@ -443,8 +446,11 @@ def test_render_api_rejects_missing_credit(
 
     response = test_client.post(f"/api/projects/{project['id']}/render")
 
-    assert response.status_code == 409
-    assert response.json()["error"]["code"] == "missing_credit"
+    assert response.status_code == 202
+    job = test_client.get(f"/api/jobs/{response.json()['job_id']}").json()
+    assert job["status"] == "failed"
+    assert job["error"]["code"] == "missing_credit"
+    assert storage.read_json(project["id"], "logs/error.json")["reason"] == "Credit is required before rendering."
 
 
 def test_render_api_writes_manifest_and_preview_output(
@@ -477,14 +483,109 @@ def test_render_api_writes_manifest_and_preview_output(
 
     response = test_client.post(f"/api/projects/{project['id']}/render")
 
-    assert response.status_code == 200
-    manifest = response.json()
+    assert response.status_code == 202
+    job = test_client.get(f"/api/jobs/{response.json()['job_id']}").json()
+    assert job["status"] == "succeeded"
+    assert job["output_paths"] == [
+        "renders/render-manifest.json",
+        "renders/preview_vertical_1080x1920.mp4",
+    ]
+    manifest = storage.read_json(project["id"], "renders/render-manifest.json")
     assert manifest["source_image_sha256"]
     assert manifest["credit_text"] == "Example Observatory"
     assert manifest["preview_output_path"] == "renders/preview_vertical_1080x1920.mp4"
     assert (storage.projects_root / project["id"] / "renders" / "render-manifest.json").exists()
     assert (storage.projects_root / project["id"] / "renders" / "preview_vertical_1080x1920.mp4").exists()
+    assert (storage.projects_root / project["id"] / "logs" / "jobs" / f"{job['id']}.json").exists()
+    assert test_client.get(f"/api/projects/{project['id']}/logs").json()["entries"]
     assert test_client.get(f"/api/projects/{project['id']}").json()["status"] == "rendered"
+
+
+def test_export_api_generates_quality_report_and_marks_project_exported(
+    client: tuple[TestClient, ProjectStorage],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from video_foundry.ffmpeg.command_builder import FFmpegCommandSpec
+    from video_foundry.storyboard.validator import RenderPreset
+
+    test_client, storage = client
+    project = _create_project_ready_for_render(test_client, approve_storyboard=True)
+
+    def fake_load_render_preset(_config_dir: Path, format_name: str) -> RenderPreset:
+        return RenderPreset(
+            format=format_name,
+            width=72,
+            height=96,
+            fps=2,
+            safe_area={"top": 0.08, "right": 0.06, "bottom": 0.12, "left": 0.06},
+            max_zoom=1.12,
+        )
+
+    def fake_assemble_video(**kwargs):
+        output_path = kwargs["output_path"]
+        output_path.write_bytes(b"fake mp4 payload")
+        return FFmpegCommandSpec(command=["ffmpeg", "fake"], output_path=output_path, uses_background_music=False)
+
+    monkeypatch.setattr("video_foundry.renderer.service.load_render_preset", fake_load_render_preset)
+    monkeypatch.setattr("video_foundry.renderer.service.assemble_video", fake_assemble_video)
+
+    response = test_client.post(f"/api/projects/{project['id']}/export")
+
+    assert response.status_code == 202
+    job = test_client.get(f"/api/jobs/{response.json()['job_id']}").json()
+    assert job["status"] == "succeeded"
+    assert "exports/quality-report.json" in job["output_paths"]
+    report = test_client.get(f"/api/projects/{project['id']}/quality-report").json()
+    assert report["passed"] is True
+    assert (storage.projects_root / project["id"] / "exports" / "quality-report.json").exists()
+    assert test_client.get(f"/api/projects/{project['id']}").json()["status"] == "exported"
+
+
+def test_export_quality_gate_failure_does_not_mark_project_exported(
+    client: tuple[TestClient, ProjectStorage],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from video_foundry.renderer.manifest import build_render_manifest, write_render_manifest
+
+    test_client, storage = client
+    project = _create_project_ready_for_render(test_client, approve_storyboard=True)
+
+    def fake_export_project_video(storage: ProjectStorage, project_id: str, *, config_dir: Path):
+        final_path = "exports/final_vertical_1080x1920.mp4"
+        storage.write_bytes(project_id, final_path, b"fake mp4 payload")
+        manifest = build_render_manifest(
+            project_id=project_id,
+            format_name="vertical_1080x1920",
+            fps=30,
+            width=1080,
+            height=1920,
+            duration_sec=storage.read_json(project_id, "storyboard/storyboard.json")["duration_sec"],
+            source_image_path="assets/original.png",
+            source_image_sha256=storage.read_json(project_id, "metadata/asset.json")["sha256"],
+            storyboard_version=1,
+            subtitles_path="subtitles/subtitles.srt",
+            credit_text="Example Observatory",
+            subtitle_overlay={"x": 80, "y": 1600, "width": 920, "height": 120, "units": "px"},
+            credit_overlay={},
+            preview_output_path=None,
+            final_output_path=final_path,
+            frame_count=120,
+            keyframes=[],
+        )
+        write_render_manifest(storage, project_id, manifest)
+        return manifest
+
+    monkeypatch.setattr("video_foundry.api.routes.render.export_project_video", fake_export_project_video)
+
+    response = test_client.post(f"/api/projects/{project['id']}/export")
+
+    assert response.status_code == 202
+    job = test_client.get(f"/api/jobs/{response.json()['job_id']}").json()
+    assert job["status"] == "failed"
+    assert job["error"]["code"] == "quality_gate_failed"
+    report = test_client.get(f"/api/projects/{project['id']}/quality-report").json()
+    assert report["passed"] is False
+    assert test_client.get(f"/api/projects/{project['id']}").json()["status"] != "exported"
 
 
 def _image_bytes(*, size: tuple[int, int]) -> bytes:

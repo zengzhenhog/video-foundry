@@ -2,11 +2,14 @@ import type {
   Asset,
   AssetTextRequest,
   BackgroundMusic,
+  JobRecord,
+  JobSubmitResponse,
   Project,
   ProjectCreateRequest,
   ProjectDetail,
   ProjectListResponse,
-  RenderManifest,
+  ProjectLogsResponse,
+  QualityReport,
   Script,
   ScriptGenerateRequest,
   ScriptUpdateRequest,
@@ -59,8 +62,13 @@ const ERROR_MESSAGES: Record<string, string> = {
   render_preset_missing: "渲染规格配置缺失。",
   render_presets_invalid: "渲染规格配置不是有效 JSON。",
   render_presets_missing: "找不到渲染规格配置。",
+  job_metadata_invalid: "任务记录无效。",
+  job_not_found: "任务不存在。",
   ffmpeg_assembly_failed: "FFmpeg 合成失败。",
   ffmpeg_not_available: "当前环境找不到 FFmpeg。",
+  quality_gate_failed: "导出质量检查未通过。",
+  quality_report_invalid: "质量报告无效。",
+  quality_report_not_found: "尚未生成质量报告。",
   render_output_not_found: "尚未生成视频文件。",
   render_source_hash_missing: "原图缺少 hash，无法渲染。",
   render_source_image_missing: "缺少原图，无法渲染。",
@@ -257,16 +265,28 @@ export function generateSubtitles(projectId: string): Promise<SubtitlesManifest>
   );
 }
 
-export function renderProject(projectId: string): Promise<RenderManifest> {
-  return request<RenderManifest>(`/api/projects/${encodeURIComponent(projectId)}/render`, {
+export function renderProject(projectId: string): Promise<JobSubmitResponse> {
+  return request<JobSubmitResponse>(`/api/projects/${encodeURIComponent(projectId)}/render`, {
     method: "POST",
   });
 }
 
-export function exportProject(projectId: string): Promise<RenderManifest> {
-  return request<RenderManifest>(`/api/projects/${encodeURIComponent(projectId)}/export`, {
+export function exportProject(projectId: string): Promise<JobSubmitResponse> {
+  return request<JobSubmitResponse>(`/api/projects/${encodeURIComponent(projectId)}/export`, {
     method: "POST",
   });
+}
+
+export function getJob(jobId: string): Promise<JobRecord> {
+  return request<JobRecord>(`/api/jobs/${encodeURIComponent(jobId)}`);
+}
+
+export function getProjectLogs(projectId: string): Promise<ProjectLogsResponse> {
+  return request<ProjectLogsResponse>(`/api/projects/${encodeURIComponent(projectId)}/logs`);
+}
+
+export function getQualityReport(projectId: string): Promise<QualityReport> {
+  return request<QualityReport>(`/api/projects/${encodeURIComponent(projectId)}/quality-report`);
 }
 
 export function renderPreviewUrl(projectId: string, updatedAt?: string | null): string {
