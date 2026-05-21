@@ -6,6 +6,7 @@ import type {
   ProjectCreateRequest,
   ProjectDetail,
   ProjectListResponse,
+  RenderManifest,
   Script,
   ScriptGenerateRequest,
   ScriptUpdateRequest,
@@ -58,6 +59,11 @@ const ERROR_MESSAGES: Record<string, string> = {
   render_preset_missing: "渲染规格配置缺失。",
   render_presets_invalid: "渲染规格配置不是有效 JSON。",
   render_presets_missing: "找不到渲染规格配置。",
+  ffmpeg_assembly_failed: "FFmpeg 合成失败。",
+  ffmpeg_not_available: "当前环境找不到 FFmpeg。",
+  render_output_not_found: "尚未生成视频文件。",
+  render_source_hash_missing: "原图缺少 hash，无法渲染。",
+  render_source_image_missing: "缺少原图，无法渲染。",
   script_grounding_missing: "脚本缺少来源约束说明。",
   script_metadata_invalid: "脚本元数据无效。",
   script_narration_required: "脚本文案不能为空。",
@@ -70,12 +76,14 @@ const ERROR_MESSAGES: Record<string, string> = {
   storyboard_duration_invalid: "分镜时长无效。",
   storyboard_metadata_invalid: "分镜元数据无效。",
   storyboard_not_found: "尚未生成或保存分镜。",
+  storyboard_not_approved: "请先批准分镜。",
   storyboard_shots_required: "分镜至少需要一个镜头。",
   storyboard_timeline_invalid: "分镜时间线必须连续且不重叠。",
   storyboard_zoom_exceeded: "裁切缩放超过当前输出规格限制。",
   subtitle_cues_required: "字幕至少需要一条内容。",
   subtitles_metadata_invalid: "字幕元数据无效。",
   subtitles_not_found: "尚未生成字幕。",
+  subtitles_stale_or_missing: "字幕缺失或已过期。",
   unsupported_background_music_format: "不支持该背景音乐格式。",
   unsupported_tts_provider: "不支持或未启用该语音服务。",
   unsupported_image_format: "不支持该图片格式。",
@@ -247,6 +255,28 @@ export function generateSubtitles(projectId: string): Promise<SubtitlesManifest>
       method: "POST",
     },
   );
+}
+
+export function renderProject(projectId: string): Promise<RenderManifest> {
+  return request<RenderManifest>(`/api/projects/${encodeURIComponent(projectId)}/render`, {
+    method: "POST",
+  });
+}
+
+export function exportProject(projectId: string): Promise<RenderManifest> {
+  return request<RenderManifest>(`/api/projects/${encodeURIComponent(projectId)}/export`, {
+    method: "POST",
+  });
+}
+
+export function renderPreviewUrl(projectId: string, updatedAt?: string | null): string {
+  const query = updatedAt ? `?v=${encodeURIComponent(updatedAt)}` : "";
+  return `${API_BASE_URL}/api/projects/${encodeURIComponent(projectId)}/render/preview${query}`;
+}
+
+export function exportVideoUrl(projectId: string, updatedAt?: string | null): string {
+  const query = updatedAt ? `?v=${encodeURIComponent(updatedAt)}` : "";
+  return `${API_BASE_URL}/api/projects/${encodeURIComponent(projectId)}/export/video${query}`;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {

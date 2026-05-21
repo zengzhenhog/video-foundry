@@ -371,6 +371,65 @@ class SubtitlesManifest(BaseDiskModel):
         return validate_relative_project_path_value(value)
 
 
+class RenderKeyframe(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    shot_id: str
+    frame_index: int = Field(ge=0)
+    time_sec: float = Field(ge=0)
+    crop: tuple[float, float, float, float]
+    output_path: str
+
+    @field_validator("shot_id")
+    @classmethod
+    def validate_shot_id(cls, value: str) -> str:
+        return validate_identifier_value(value, "shot_id")
+
+    @field_validator("output_path")
+    @classmethod
+    def validate_output_path(cls, value: str) -> str:
+        return validate_relative_project_path_value(value)
+
+
+class RenderManifest(BaseDiskModel):
+    project_id: str
+    format: str
+    fps: int = Field(gt=0, le=240)
+    width: int = Field(gt=0)
+    height: int = Field(gt=0)
+    duration_sec: float = Field(gt=0, le=3600)
+    source_image_path: str
+    source_image_sha256: str = Field(min_length=64, max_length=64)
+    storyboard_version: int = Field(ge=1)
+    subtitles_path: str
+    credit_text: str = Field(min_length=1)
+    credit_overlay: dict[str, float | str] = Field(default_factory=dict)
+    subtitle_overlay: dict[str, float | str] = Field(default_factory=dict)
+    preview_output_path: str | None = None
+    final_output_path: str | None = None
+    frame_count: int = Field(ge=0)
+    keyframes: list[RenderKeyframe] = Field(default_factory=list)
+    deterministic_rules: list[str] = Field(default_factory=list)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+    @field_validator("project_id")
+    @classmethod
+    def validate_project_id(cls, value: str) -> str:
+        return validate_project_id(value)
+
+    @field_validator("format")
+    @classmethod
+    def validate_format(cls, value: str) -> str:
+        return validate_identifier_value(value, "format")
+
+    @field_validator("source_image_path", "subtitles_path", "preview_output_path", "final_output_path")
+    @classmethod
+    def validate_relative_paths(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return validate_relative_project_path_value(value)
+
+
 class RenderJob(BaseDiskModel):
     id: str
     project_id: str

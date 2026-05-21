@@ -412,6 +412,81 @@ def test_editing_approved_storyboard_marks_subtitles_stale(
     assert manifest["stale"] is True
 
 
+def test_render_api_rejects_unapproved_storyboard(
+    client: tuple[TestClient, ProjectStorage],
+) -> None:
+    test_client, _storage = client
+    project = _create_project_ready_for_render(test_client, approve_storyboard=False)
+
+    response = test_client.post(f"/api/projects/{project['id']}/render")
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "storyboard_not_approved"
+
+
+def test_render_api_rejects_missing_credit(
+    client: tuple[TestClient, ProjectStorage],
+) -> None:
+    test_client, _storage = client
+    project = _create_project_ready_for_render(test_client, approve_storyboard=True)
+    current_asset = test_client.get(f"/api/projects/{project['id']}").json()["asset"]
+    save_response = test_client.post(
+        f"/api/projects/{project['id']}/assets/text",
+        json={
+            "title": current_asset["title"],
+            "description": current_asset["description"],
+            "source_url": current_asset["source_url"],
+            "credit": "",
+        },
+    )
+    assert save_response.status_code == 200
+
+    response = test_client.post(f"/api/projects/{project['id']}/render")
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "missing_credit"
+
+
+def test_render_api_writes_manifest_and_preview_output(
+    client: tuple[TestClient, ProjectStorage],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from video_foundry.ffmpeg.command_builder import FFmpegCommandSpec
+    from video_foundry.storyboard.validator import RenderPreset
+
+    test_client, storage = client
+    project = _create_project_ready_for_render(test_client, approve_storyboard=True)
+
+    def fake_load_render_preset(_config_dir: Path, format_name: str) -> RenderPreset:
+        return RenderPreset(
+            format=format_name,
+            width=72,
+            height=96,
+            fps=2,
+            safe_area={"top": 0.08, "right": 0.06, "bottom": 0.12, "left": 0.06},
+            max_zoom=1.12,
+        )
+
+    def fake_assemble_video(**kwargs):
+        output_path = kwargs["output_path"]
+        output_path.write_bytes(b"fake mp4")
+        return FFmpegCommandSpec(command=["ffmpeg", "fake"], output_path=output_path, uses_background_music=False)
+
+    monkeypatch.setattr("video_foundry.renderer.service.load_render_preset", fake_load_render_preset)
+    monkeypatch.setattr("video_foundry.renderer.service.assemble_video", fake_assemble_video)
+
+    response = test_client.post(f"/api/projects/{project['id']}/render")
+
+    assert response.status_code == 200
+    manifest = response.json()
+    assert manifest["source_image_sha256"]
+    assert manifest["credit_text"] == "Example Observatory"
+    assert manifest["preview_output_path"] == "renders/preview_vertical_1080x1920.mp4"
+    assert (storage.projects_root / project["id"] / "renders" / "render-manifest.json").exists()
+    assert (storage.projects_root / project["id"] / "renders" / "preview_vertical_1080x1920.mp4").exists()
+    assert test_client.get(f"/api/projects/{project['id']}").json()["status"] == "rendered"
+
+
 def _image_bytes(*, size: tuple[int, int]) -> bytes:
     output = io.BytesIO()
     Image.new("RGB", size, color=(42, 80, 112)).save(output, format="PNG")
@@ -459,4 +534,20 @@ def _save_mock_voice_config(test_client: TestClient, project_id: str):
             "style": "clear",
         },
     )
+
+
+def _create_project_ready_for_render(test_client: TestClient, *, approve_storyboard: bool) -> dict:
+    project = _create_project_with_generated_script(test_client, approved=True)
+    config_response = _save_mock_voice_config(test_client, project["id"])
+    assert config_response.status_code == 200
+    voice_response = test_client.post(f"/api/projects/{project['id']}/voice/generate")
+    assert voice_response.status_code == 200
+    storyboard_response = test_client.post(f"/api/projects/{project['id']}/storyboard/generate", json={})
+    assert storyboard_response.status_code == 200
+    if approve_storyboard:
+        approve_response = test_client.post(f"/api/projects/{project['id']}/storyboard/approve")
+        assert approve_response.status_code == 200
+    subtitles_response = test_client.post(f"/api/projects/{project['id']}/subtitles/generate")
+    assert subtitles_response.status_code == 200
+    return project
 

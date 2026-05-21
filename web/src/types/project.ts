@@ -188,6 +188,37 @@ export interface SubtitlesManifest {
   updated_at: string;
 }
 
+export interface RenderKeyframe {
+  shot_id: string;
+  frame_index: number;
+  time_sec: number;
+  crop: [number, number, number, number];
+  output_path: string;
+}
+
+export interface RenderManifest {
+  schema_version: "1.0";
+  project_id: string;
+  format: string;
+  fps: number;
+  width: number;
+  height: number;
+  duration_sec: number;
+  source_image_path: string;
+  source_image_sha256: string;
+  storyboard_version: number;
+  subtitles_path: string;
+  credit_text: string;
+  credit_overlay: Record<string, number | string>;
+  subtitle_overlay: Record<string, number | string>;
+  preview_output_path: string | null;
+  final_output_path: string | null;
+  frame_count: number;
+  keyframes: RenderKeyframe[];
+  deterministic_rules: string[];
+  updated_at: string;
+}
+
 export interface ProjectListResponse {
   projects: Project[];
 }

@@ -23,5 +23,6 @@ describe("StepNavigation", () => {
     expect(wrapper.findAllComponents(RouterLinkStub)[2].props("to")).toBe("/projects/prj_123/script");
     expect(wrapper.findAllComponents(RouterLinkStub)[3].props("to")).toBe("/projects/prj_123/voice");
     expect(wrapper.findAllComponents(RouterLinkStub)[4].props("to")).toBe("/projects/prj_123/storyboard");
+    expect(wrapper.findAllComponents(RouterLinkStub)[5].props("to")).toBe("/projects/prj_123/render");
   });
 });
