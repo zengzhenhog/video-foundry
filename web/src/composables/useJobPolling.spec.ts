@@ -61,6 +61,32 @@ describe("useJobPolling", () => {
     expect(onFinished).toHaveBeenCalledWith(expect.objectContaining({ status: "failed" }));
     expect(getJob).toHaveBeenCalledTimes(1);
   });
+
+  it("等待人工处理时停止轮询", async () => {
+    const onFinished = vi.fn();
+    vi.mocked(getJob).mockResolvedValueOnce(
+      jobRecord({
+        status: "blocked",
+        progress: 0.3,
+        error: {
+          code: "needs_script_approval",
+          step: "script_review",
+          reason: "Script needs human approval before continuing.",
+          retryable: true,
+          suggested_correction: "Approve the script.",
+          details: {},
+        },
+      }),
+    );
+    const polling = useJobPolling({ intervalMs: 10, onFinished });
+
+    await polling.start("job_1");
+
+    expect(polling.isPolling.value).toBe(false);
+    expect(polling.job.value?.status).toBe("blocked");
+    expect(onFinished).toHaveBeenCalledWith(expect.objectContaining({ status: "blocked" }));
+    expect(getJob).toHaveBeenCalledTimes(1);
+  });
 });
 
 function jobRecord(overrides: Partial<JobRecord>): JobRecord {

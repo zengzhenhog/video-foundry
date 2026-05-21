@@ -2,6 +2,8 @@ import { createRouter, createWebHistory } from "vue-router";
 
 import ProjectAssets from "../pages/ProjectAssets.vue";
 import ProjectCreate from "../pages/ProjectCreate.vue";
+import ProjectDetail from "../pages/ProjectDetail.vue";
+import ProjectExport from "../pages/ProjectExport.vue";
 import ProjectList from "../pages/ProjectList.vue";
 import ProjectRender from "../pages/ProjectRender.vue";
 import ProjectScript from "../pages/ProjectScript.vue";
@@ -16,7 +18,9 @@ const router = createRouter({
     { path: "/projects/new", name: "project-create", component: ProjectCreate },
     {
       path: "/projects/:id",
-      redirect: (to) => ({ name: "project-assets", params: { id: to.params.id } }),
+      name: "project-detail",
+      component: ProjectDetail,
+      props: true,
     },
     {
       path: "/projects/:id/assets",
@@ -46,6 +50,12 @@ const router = createRouter({
       path: "/projects/:id/render",
       name: "project-render",
       component: ProjectRender,
+      props: true,
+    },
+    {
+      path: "/projects/:id/export",
+      name: "project-export",
+      component: ProjectExport,
       props: true,
     },
   ],

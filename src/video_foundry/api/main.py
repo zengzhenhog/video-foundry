@@ -4,8 +4,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from video_foundry.api.routes.assets import router as assets_router
+from video_foundry.api.routes.downloads import router as downloads_router
 from video_foundry.api.routes.jobs import router as jobs_router
 from video_foundry.api.routes.logs import router as logs_router
+from video_foundry.api.routes.pipeline import router as pipeline_router
 from video_foundry.api.routes.projects import router as projects_router
 from video_foundry.api.routes.quality import router as quality_router
 from video_foundry.api.routes.render import router as render_router
@@ -60,6 +62,8 @@ def create_app() -> FastAPI:
     app.include_router(storyboard_router)
     app.include_router(subtitles_router)
     app.include_router(render_router)
+    app.include_router(pipeline_router)
+    app.include_router(downloads_router)
     app.include_router(jobs_router)
     app.include_router(logs_router)
     app.include_router(quality_router)

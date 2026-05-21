@@ -18,6 +18,7 @@ JobTask = Callable[[ProgressCallback], "JobRunResult"]
 class JobRunResult:
     output_paths: list[str] = field(default_factory=list)
     summary: str = "Job completed."
+    blocked_error: JobError | None = None
 
 
 def enqueue_job(
@@ -52,5 +53,14 @@ def run_job(
         manager.fail(project_id, job_id, error=JobError.from_exception(exc, step=step))
         return
 
-    manager.succeed(project_id, job_id, output_paths=result.output_paths, summary=result.summary)
+    if result.blocked_error:
+        manager.block(
+            project_id,
+            job_id,
+            error=result.blocked_error,
+            output_paths=result.output_paths,
+            summary=result.summary,
+        )
+        return
 
+    manager.succeed(project_id, job_id, output_paths=result.output_paths, summary=result.summary)

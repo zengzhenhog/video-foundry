@@ -1,16 +1,18 @@
 <script setup lang="ts">
 defineProps<{
   projectId?: string;
-  current: "projects" | "assets" | "script" | "voice" | "storyboard" | "render";
+  current: "projects" | "detail" | "assets" | "script" | "voice" | "storyboard" | "render" | "export";
 }>();
 
 const steps = [
   { key: "projects", label: "项目" },
+  { key: "detail", label: "总览" },
   { key: "assets", label: "素材" },
   { key: "script", label: "脚本" },
   { key: "voice", label: "旁白" },
   { key: "storyboard", label: "分镜" },
   { key: "render", label: "渲染" },
+  { key: "export", label: "导出" },
 ] as const;
 
 type StepKey = (typeof steps)[number]["key"];
@@ -22,6 +24,9 @@ function isDisabled(key: StepKey, projectId?: string): boolean {
 function stepTo(key: StepKey, projectId?: string): string {
   if (key === "projects") {
     return "/projects";
+  }
+  if (key === "detail" && projectId) {
+    return `/projects/${projectId}`;
   }
   if (key === "assets" && projectId) {
     return `/projects/${projectId}/assets`;
@@ -37,6 +42,9 @@ function stepTo(key: StepKey, projectId?: string): string {
   }
   if (key === "render" && projectId) {
     return `/projects/${projectId}/render`;
+  }
+  if (key === "export" && projectId) {
+    return `/projects/${projectId}/export`;
   }
   return "#";
 }

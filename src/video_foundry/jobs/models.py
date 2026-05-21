@@ -18,6 +18,7 @@ from video_foundry.shared.schemas import SCHEMA_VERSION, utc_now
 class JobStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
+    BLOCKED = "blocked"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
     CANCELLED = "cancelled"
@@ -137,4 +138,3 @@ class ProjectLogsResponse(BaseModel):
     @classmethod
     def validate_project_id(cls, value: str) -> str:
         return validate_project_id(value)
-

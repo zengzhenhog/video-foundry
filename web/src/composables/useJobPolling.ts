@@ -3,7 +3,7 @@ import { computed, getCurrentInstance, onBeforeUnmount, ref } from "vue";
 import { ApiError, getJob } from "../api/client";
 import type { JobRecord, JobStatus } from "../types/project";
 
-const TERMINAL_STATUSES = new Set<JobStatus>(["succeeded", "failed", "cancelled"]);
+const TERMINAL_STATUSES = new Set<JobStatus>(["blocked", "succeeded", "failed", "cancelled"]);
 
 interface UseJobPollingOptions {
   intervalMs?: number;

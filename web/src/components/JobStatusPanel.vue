@@ -15,13 +15,16 @@ const emit = defineEmits<{
 const statusLabels: Record<JobStatus, string> = {
   pending: "排队中",
   running: "运行中",
+  blocked: "等待人工处理",
   succeeded: "已完成",
   failed: "失败",
   cancelled: "已取消",
 };
 
 const progressPercent = computed(() => Math.round((props.job?.progress ?? 0) * 100));
-const canRetry = computed(() => Boolean(props.job?.status === "failed" && props.job.error?.retryable));
+const canRetry = computed(() =>
+  Boolean((props.job?.status === "failed" || props.job?.status === "blocked") && props.job.error?.retryable),
+);
 </script>
 
 <template>
@@ -71,4 +74,3 @@ const canRetry = computed(() => Boolean(props.job?.status === "failed" && props.
     <p v-else class="muted">提交渲染或导出后，这里会显示进度、结果和失败诊断。</p>
   </section>
 </template>
-

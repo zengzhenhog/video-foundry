@@ -2,6 +2,7 @@ import type {
   Asset,
   AssetTextRequest,
   BackgroundMusic,
+  DownloadsResponse,
   JobRecord,
   JobSubmitResponse,
   Project,
@@ -80,6 +81,11 @@ const ERROR_MESSAGES: Record<string, string> = {
   script_provider_output_invalid: "脚本生成结果格式无效。",
   script_segments_required: "脚本至少需要一个段落。",
   asset_not_ready_for_script: "请先补齐图片、描述、来源 URL 和署名。",
+  download_not_found: "下载文件尚未生成。",
+  invalid_download_path: "下载路径无效。",
+  needs_script_approval: "脚本已生成，请先审核批准。",
+  needs_storyboard_approval: "分镜已生成，请先审核批准。",
+  needs_voice_config: "请先保存旁白配置。",
   storyboard_crop_invalid: "分镜裁切坐标无效。",
   storyboard_duration_invalid: "分镜时长无效。",
   storyboard_metadata_invalid: "分镜元数据无效。",
@@ -277,6 +283,12 @@ export function exportProject(projectId: string): Promise<JobSubmitResponse> {
   });
 }
 
+export function generateAll(projectId: string): Promise<JobSubmitResponse> {
+  return request<JobSubmitResponse>(`/api/projects/${encodeURIComponent(projectId)}/generate-all`, {
+    method: "POST",
+  });
+}
+
 export function getJob(jobId: string): Promise<JobRecord> {
   return request<JobRecord>(`/api/jobs/${encodeURIComponent(jobId)}`);
 }
@@ -287,6 +299,14 @@ export function getProjectLogs(projectId: string): Promise<ProjectLogsResponse> 
 
 export function getQualityReport(projectId: string): Promise<QualityReport> {
   return request<QualityReport>(`/api/projects/${encodeURIComponent(projectId)}/quality-report`);
+}
+
+export function getDownloads(projectId: string): Promise<DownloadsResponse> {
+  return request<DownloadsResponse>(`/api/projects/${encodeURIComponent(projectId)}/downloads`);
+}
+
+export function downloadFileUrl(path: string): string {
+  return `${API_BASE_URL}${path}`;
 }
 
 export function renderPreviewUrl(projectId: string, updatedAt?: string | null): string {

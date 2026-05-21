@@ -94,6 +94,39 @@ class JobManager:
         self._log(next_job, step=next_job.type, status=JobStatus.SUCCEEDED, summary=summary)
         return next_job
 
+    def block(
+        self,
+        project_id: str,
+        job_id: str,
+        *,
+        error: JobError,
+        output_paths: list[str] | None = None,
+        summary: str | None = None,
+    ) -> JobRecord:
+        job = self.store.read_job(project_id, job_id)
+        now = utc_now()
+        next_job = job.model_copy(
+            update={
+                "status": JobStatus.BLOCKED,
+                "progress": max(job.progress, 0.01),
+                "summary": summary or error.reason,
+                "updated_at": now,
+                "finished_at": now,
+                "error": error,
+                "output_paths": output_paths if output_paths is not None else job.output_paths,
+            },
+            deep=True,
+        )
+        self.store.write_job(next_job)
+        self._log(
+            next_job,
+            step=error.step,
+            status=JobStatus.BLOCKED,
+            summary=summary or error.reason,
+            details={"code": error.code, "retryable": error.retryable},
+        )
+        return next_job
+
     def fail(self, project_id: str, job_id: str, *, error: JobError) -> JobRecord:
         job = self.store.read_job(project_id, job_id)
         now = utc_now()
@@ -150,4 +183,3 @@ class JobManager:
                 details=details or {},
             )
         )
-

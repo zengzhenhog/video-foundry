@@ -219,7 +219,7 @@ export interface RenderManifest {
   updated_at: string;
 }
 
-export type JobStatus = "pending" | "running" | "succeeded" | "failed" | "cancelled";
+export type JobStatus = "pending" | "running" | "blocked" | "succeeded" | "failed" | "cancelled";
 
 export interface JobError {
   code: string;
@@ -281,6 +281,27 @@ export interface QualityReport {
   warnings: string[];
   errors: string[];
   created_at: string;
+}
+
+export interface DownloadFile {
+  kind: string;
+  label: string;
+  path: string;
+  url: string;
+  media_type: string;
+  size_bytes: number;
+}
+
+export interface MissingDownload {
+  kind: string;
+  label: string;
+  path: string;
+}
+
+export interface DownloadsResponse {
+  project_id: string;
+  files: DownloadFile[];
+  missing: MissingDownload[];
 }
 
 export interface ProjectListResponse {

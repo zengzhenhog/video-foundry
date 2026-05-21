@@ -631,6 +631,88 @@ textarea {
   font-weight: 800;
 }
 
+.workflow-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.workflow-step {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  border: 1px solid #d9e0e8;
+  border-radius: 8px;
+  padding: 16px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgb(20 34 50 / 6%);
+}
+
+.workflow-step--ready {
+  border-color: #9cc4b2;
+  background: #f4fbf7;
+}
+
+.missing-list,
+.missing-downloads ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-left: 18px;
+  color: #5b6d81;
+  line-height: 1.45;
+}
+
+.download-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.download-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.download-link {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid #dbe2ea;
+  border-radius: 8px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.download-link span,
+.download-link strong,
+.download-link small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.download-link span {
+  color: #213547;
+  font-weight: 800;
+}
+
+.download-link strong,
+.download-link small,
+.missing-downloads small {
+  color: #667587;
+  font-size: 0.82rem;
+}
+
+.missing-downloads {
+  display: grid;
+  gap: 8px;
+}
+
+.missing-downloads li {
+  display: grid;
+  gap: 2px;
+}
+
 .check-list,
 .log-list {
   display: grid;
@@ -706,7 +788,9 @@ textarea {
   .storyboard-layout,
   .storyboard-shot__grid,
   .crop-grid,
-  .render-videos {
+  .render-videos,
+  .workflow-grid,
+  .download-list {
     grid-template-columns: 1fr;
   }
 

@@ -588,16 +588,117 @@ def test_export_quality_gate_failure_does_not_mark_project_exported(
     assert test_client.get(f"/api/projects/{project['id']}").json()["status"] != "exported"
 
 
+def test_generate_all_stops_after_script_generation_for_review(
+    client: tuple[TestClient, ProjectStorage],
+) -> None:
+    test_client, storage = client
+    project = _create_project_with_assets(test_client)
+
+    response = test_client.post(f"/api/projects/{project['id']}/generate-all")
+
+    assert response.status_code == 202
+    job = test_client.get(f"/api/jobs/{response.json()['job_id']}").json()
+    assert job["status"] == "blocked"
+    assert job["error"]["code"] == "needs_script_approval"
+    assert job["error"]["step"] == "script_review"
+    assert "script/script.json" in job["output_paths"]
+    assert (storage.projects_root / project["id"] / "script" / "script.json").exists()
+    assert test_client.get(f"/api/projects/{project['id']}").json()["status"] == "script_ready"
+
+
+def test_generate_all_stops_after_storyboard_generation_for_review(
+    client: tuple[TestClient, ProjectStorage],
+) -> None:
+    test_client, storage = client
+    project = _create_project_with_generated_script(test_client, approved=True)
+    config_response = _save_mock_voice_config(test_client, project["id"])
+    assert config_response.status_code == 200
+
+    response = test_client.post(f"/api/projects/{project['id']}/generate-all")
+
+    assert response.status_code == 202
+    job = test_client.get(f"/api/jobs/{response.json()['job_id']}").json()
+    assert job["status"] == "blocked"
+    assert job["error"]["code"] == "needs_storyboard_approval"
+    assert job["error"]["step"] == "storyboard_review"
+    assert "audio/narration.wav" in job["output_paths"]
+    assert "storyboard/storyboard.json" in job["output_paths"]
+    assert (storage.projects_root / project["id"] / "audio" / "narration.wav").exists()
+    storyboard = storage.read_json(project["id"], "storyboard/storyboard.json")
+    assert storyboard["approved"] is False
+    assert test_client.get(f"/api/projects/{project['id']}").json()["status"] == "storyboard_ready"
+
+
+def test_generate_all_exports_without_background_music_and_downloads_existing_files(
+    client: tuple[TestClient, ProjectStorage],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from video_foundry.ffmpeg.command_builder import FFmpegCommandSpec
+    from video_foundry.storyboard.validator import RenderPreset
+
+    test_client, storage = client
+    project = _create_project_ready_for_render(test_client, approve_storyboard=True)
+    assert test_client.get(f"/api/projects/{project['id']}").json()["background_music"] is None
+
+    def fake_load_render_preset(_config_dir: Path, format_name: str) -> RenderPreset:
+        return RenderPreset(
+            format=format_name,
+            width=72,
+            height=96,
+            fps=2,
+            safe_area={"top": 0.08, "right": 0.06, "bottom": 0.12, "left": 0.06},
+            max_zoom=1.12,
+        )
+
+    def fake_assemble_video(**kwargs):
+        output_path = kwargs["output_path"]
+        output_path.write_bytes(b"fake mp4 payload")
+        return FFmpegCommandSpec(command=["ffmpeg", "fake"], output_path=output_path, uses_background_music=False)
+
+    monkeypatch.setattr("video_foundry.renderer.service.load_render_preset", fake_load_render_preset)
+    monkeypatch.setattr("video_foundry.renderer.service.assemble_video", fake_assemble_video)
+
+    response = test_client.post(f"/api/projects/{project['id']}/generate-all")
+
+    assert response.status_code == 202
+    job = test_client.get(f"/api/jobs/{response.json()['job_id']}").json()
+    assert job["status"] == "succeeded"
+    assert "exports/final_vertical_1080x1920.mp4" in job["output_paths"]
+    assert "exports/quality-report.json" in job["output_paths"]
+    assert (storage.projects_root / project["id"] / "exports" / "final_vertical_1080x1920.mp4").exists()
+    assert test_client.get(f"/api/projects/{project['id']}/quality-report").json()["passed"] is True
+    assert test_client.get(f"/api/projects/{project['id']}").json()["status"] == "exported"
+
+    downloads_response = test_client.get(f"/api/projects/{project['id']}/downloads")
+    assert downloads_response.status_code == 200
+    downloads = downloads_response.json()
+    paths = {file["path"] for file in downloads["files"]}
+    assert "exports/final_vertical_1080x1920.mp4" in paths
+    assert "subtitles/subtitles.srt" in paths
+    assert "subtitles/subtitles.vtt" in paths
+    assert "audio/narration.wav" in paths
+    assert "renders/render-manifest.json" in paths
+    assert "exports/quality-report.json" in paths
+    assert all(".." not in path and ":" not in path for path in paths)
+    assert "audio/background_music.mp3" not in paths
+
+    file_response = test_client.get(
+        f"/api/projects/{project['id']}/downloads/file/exports/final_vertical_1080x1920.mp4"
+    )
+    assert file_response.status_code == 200
+    assert file_response.content == b"fake mp4 payload"
+
+
 def _image_bytes(*, size: tuple[int, int]) -> bytes:
     output = io.BytesIO()
     Image.new("RGB", size, color=(42, 80, 112)).save(output, format="PNG")
     return output.getvalue()
 
 
-def _create_project_with_generated_script(test_client: TestClient, *, approved: bool) -> dict:
+def _create_project_with_assets(test_client: TestClient) -> dict:
     project = test_client.post(
         "/api/projects",
-        json={"name": "Voice API", "target_language": "zh-CN", "target_duration_sec": 20},
+        json={"name": "Generate all", "target_language": "zh-CN", "target_duration_sec": 20},
     ).json()
     test_client.post(
         f"/api/projects/{project['id']}/assets/image",
@@ -606,12 +707,17 @@ def _create_project_with_generated_script(test_client: TestClient, *, approved: 
     test_client.post(
         f"/api/projects/{project['id']}/assets/text",
         json={
-            "title": "Voice source",
-            "description": "Official source description for voice generation.",
+            "title": "Pipeline source",
+            "description": "Official source description for the full pipeline.",
             "source_url": "https://example.test/source",
             "credit": "Example Observatory",
         },
     )
+    return project
+
+
+def _create_project_with_generated_script(test_client: TestClient, *, approved: bool) -> dict:
+    project = _create_project_with_assets(test_client)
     generate_response = test_client.post(
         f"/api/projects/{project['id']}/script/generate",
         json={"user_draft": None},
