@@ -8,7 +8,10 @@
           <strong>视频工作台</strong>
         </span>
       </RouterLink>
-      <RouterLink class="primary-link" to="/projects/new">新建项目</RouterLink>
+      <nav class="topbar-actions" aria-label="主导航">
+        <RouterLink class="button" to="/batch">批量队列</RouterLink>
+        <RouterLink class="primary-link" to="/projects/new">新建项目</RouterLink>
+      </nav>
     </header>
 
     <RouterView />

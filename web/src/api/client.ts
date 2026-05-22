@@ -2,9 +2,14 @@ import type {
   Asset,
   AssetTextRequest,
   BackgroundMusic,
+  BatchEnqueueRequest,
+  BatchQueueItem,
+  BatchQueueResponse,
   DownloadsResponse,
   JobRecord,
   JobSubmitResponse,
+  NasaImportRequest,
+  NasaSearchResponse,
   Project,
   ProjectCreateRequest,
   ProjectDetail,
@@ -81,11 +86,22 @@ const ERROR_MESSAGES: Record<string, string> = {
   script_provider_output_invalid: "脚本生成结果格式无效。",
   script_segments_required: "脚本至少需要一个段落。",
   asset_not_ready_for_script: "请先补齐图片、描述、来源 URL 和署名。",
+  batch_item_invalid_transition: "当前批量任务状态不能执行这个操作。",
+  batch_item_not_found: "批量任务不存在。",
+  batch_queue_invalid: "批量队列记录无效。",
   download_not_found: "下载文件尚未生成。",
   invalid_download_path: "下载路径无效。",
   needs_script_approval: "脚本已生成，请先审核批准。",
   needs_storyboard_approval: "分镜已生成，请先审核批准。",
   needs_voice_config: "请先保存旁白配置。",
+  nasa_api_response_invalid: "NASA 返回的数据格式无效。",
+  nasa_api_unavailable: "NASA API 暂时不可用。",
+  nasa_cache_invalid: "NASA 搜索缓存无效。",
+  nasa_image_download_failed: "NASA 图片下载失败。",
+  nasa_image_url_missing: "该 NASA 结果缺少可下载图片。",
+  nasa_query_required: "请输入 NASA 搜索关键词。",
+  provider_call_failed: "外部服务调用失败。",
+  provider_rate_limited: "外部服务已触发限流。",
   storyboard_crop_invalid: "分镜裁切坐标无效。",
   storyboard_duration_invalid: "分镜时长无效。",
   storyboard_metadata_invalid: "分镜元数据无效。",
@@ -303,6 +319,60 @@ export function getQualityReport(projectId: string): Promise<QualityReport> {
 
 export function getDownloads(projectId: string): Promise<DownloadsResponse> {
   return request<DownloadsResponse>(`/api/projects/${encodeURIComponent(projectId)}/downloads`);
+}
+
+export async function searchNasa(query: string, pageSize = 10) {
+  const response = await request<NasaSearchResponse>(
+    `/api/imports/nasa/search?q=${encodeURIComponent(query)}&page_size=${pageSize}`,
+  );
+  return response.results;
+}
+
+export function importNasaProject(payload: NasaImportRequest): Promise<ProjectDetail> {
+  return request<ProjectDetail>("/api/imports/nasa/projects", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getBatchQueue() {
+  const response = await request<BatchQueueResponse>("/api/batch/queue");
+  return response.items;
+}
+
+export async function enqueueBatch(payload: BatchEnqueueRequest) {
+  const response = await request<BatchQueueResponse>("/api/batch/queue", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return response.items;
+}
+
+export async function runBatchQueue() {
+  const response = await request<BatchQueueResponse>("/api/batch/queue/run", {
+    method: "POST",
+  });
+  return response.items;
+}
+
+export function pauseBatchItem(itemId: string): Promise<BatchQueueItem> {
+  return request<BatchQueueItem>(`/api/batch/queue/${encodeURIComponent(itemId)}/pause`, {
+    method: "POST",
+  });
+}
+
+export function resumeBatchItem(itemId: string): Promise<BatchQueueItem> {
+  return request<BatchQueueItem>(`/api/batch/queue/${encodeURIComponent(itemId)}/resume`, {
+    method: "POST",
+  });
+}
+
+export function retryBatchItem(itemId: string): Promise<BatchQueueItem> {
+  return request<BatchQueueItem>(`/api/batch/queue/${encodeURIComponent(itemId)}/retry`, {
+    method: "POST",
+  });
 }
 
 export function downloadFileUrl(path: string): string {

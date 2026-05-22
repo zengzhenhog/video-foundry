@@ -87,6 +87,12 @@ h2 {
   min-width: 0;
 }
 
+.topbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .brand-mark {
   display: grid;
   width: 40px;
@@ -668,6 +674,111 @@ textarea {
   gap: 16px;
 }
 
+.nasa-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.nasa-results {
+  display: grid;
+  gap: 12px;
+}
+
+.nasa-result {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+  border: 1px solid #dbe2ea;
+  border-radius: 8px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.nasa-result img,
+.nasa-result .preview-placeholder {
+  width: 120px;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.nasa-result__body {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.nasa-result__body h3,
+.nasa-result__body p,
+.nasa-result__body small {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.nasa-result__body h3 {
+  font-size: 1rem;
+}
+
+.nasa-result__body p,
+.nasa-result__body small {
+  color: #5f7084;
+  line-height: 1.45;
+}
+
+.batch-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.2fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.batch-projects,
+.batch-queue-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.batch-project-row,
+.batch-queue-list li {
+  border: 1px solid #dbe2ea;
+  border-radius: 8px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.batch-project-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.batch-project-row input {
+  width: auto;
+  margin-top: 3px;
+}
+
+.batch-project-row span,
+.batch-queue-list__main {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.batch-project-row small,
+.batch-queue-list small {
+  color: #667587;
+  font-size: 0.82rem;
+}
+
+.batch-queue-list li {
+  display: grid;
+  gap: 12px;
+}
+
 .download-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -790,8 +901,16 @@ textarea {
   .crop-grid,
   .render-videos,
   .workflow-grid,
-  .download-list {
+    .download-list,
+    .batch-layout,
+    .nasa-result {
     grid-template-columns: 1fr;
+  }
+
+  .nasa-result img,
+  .nasa-result .preview-placeholder {
+    width: 100%;
+    aspect-ratio: 16 / 9;
   }
 
   .preview-panel img,

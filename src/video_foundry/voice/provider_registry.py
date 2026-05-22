@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from video_foundry.ai.script_generator import ensure_script_approved
 from video_foundry.shared.errors import AppError
 from video_foundry.shared.paths import PROJECT_METADATA_FILE
+from video_foundry.shared.provider_runtime import provider_name_for, run_provider_call
 from video_foundry.shared.schemas import Project, ProjectStatus, VoiceConfig, utc_now
 from video_foundry.shared.storage import ProjectStorage
 from video_foundry.voice.base import TTSProvider, VoicePreset, VoiceProviderInfo
@@ -174,11 +175,16 @@ def generate_narration(storage: ProjectStorage, project_id: str) -> VoiceConfig:
 
     provider = get_tts_provider(voice_config.provider)
     output_path = storage.resolve_project_path(project.id, NARRATION_RELATIVE_PATH)
-    result = provider.synthesize(
-        script.narration,
-        voice_config,
-        output_path=output_path,
-        relative_audio_path=NARRATION_RELATIVE_PATH,
+    result = run_provider_call(
+        lambda: provider.synthesize(
+            script.narration,
+            voice_config,
+            output_path=output_path,
+            relative_audio_path=NARRATION_RELATIVE_PATH,
+        ),
+        provider_name=provider_name_for(provider),
+        operation="voice_generation",
+        step="voice_generation",
     )
     next_config = voice_config.model_copy(
         update={
@@ -243,4 +249,3 @@ def _mark_project_voice_ready(storage: ProjectStorage, project: Project) -> None
             stale_artifacts[artifact] = True
     next_project.stale_artifacts = stale_artifacts
     storage.write_json(project.id, PROJECT_METADATA_FILE, next_project)
-

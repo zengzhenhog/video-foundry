@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 
 import ProjectAssets from "../pages/ProjectAssets.vue";
+import BatchQueue from "../pages/BatchQueue.vue";
 import ProjectCreate from "../pages/ProjectCreate.vue";
 import ProjectDetail from "../pages/ProjectDetail.vue";
 import ProjectExport from "../pages/ProjectExport.vue";
@@ -15,6 +16,7 @@ const router = createRouter({
   routes: [
     { path: "/", redirect: "/projects" },
     { path: "/projects", name: "projects", component: ProjectList },
+    { path: "/batch", name: "batch", component: BatchQueue },
     { path: "/projects/new", name: "project-create", component: ProjectCreate },
     {
       path: "/projects/:id",

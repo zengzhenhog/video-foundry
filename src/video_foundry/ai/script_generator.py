@@ -8,6 +8,7 @@ from video_foundry.ai.base import LLMProvider, ScriptGenerationInput
 from video_foundry.ai.mock_provider import MockScriptProvider
 from video_foundry.shared.errors import AppError
 from video_foundry.shared.paths import PROJECT_METADATA_FILE
+from video_foundry.shared.provider_runtime import provider_name_for, run_provider_call
 from video_foundry.shared.schemas import Asset, Project, ProjectStatus, Script, utc_now
 from video_foundry.shared.storage import ProjectStorage
 from video_foundry.sources.upload_importer import (
@@ -41,7 +42,13 @@ def generate_project_script(
         target_duration_sec=project.target_duration_sec,
         user_draft=user_draft.strip() if user_draft and user_draft.strip() else None,
     )
-    output = (provider or MockScriptProvider()).generate_script(script_input)
+    selected_provider = provider or MockScriptProvider()
+    output = run_provider_call(
+        lambda: selected_provider.generate_script(script_input),
+        provider_name=provider_name_for(selected_provider),
+        operation="script_generation",
+        step="script_generation",
+    )
     script = validate_provider_script_output(output, script_input)
     return _persist_script(storage, project, script, downstream_changed=True)
 

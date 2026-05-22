@@ -7,6 +7,7 @@ from video_foundry.ai.script_generator import ensure_script_approved
 from video_foundry.audio.background_music import read_background_music_metadata
 from video_foundry.audio.mixer import build_audio_mix_plan
 from video_foundry.ffmpeg.assembler import assemble_video
+from video_foundry.jobs.concurrency import get_render_limiter
 from video_foundry.renderer.frame_renderer import RenderPresetSize, render_storyboard_frames
 from video_foundry.renderer.manifest import build_render_manifest, write_render_manifest
 from video_foundry.shared.errors import AppError
@@ -54,79 +55,80 @@ def _render_project_video(
     config_dir: Path,
     mode: RenderMode,
 ) -> RenderManifest:
-    project = storage.read_project(project_id)
-    ensure_script_approved(storage, project.id, step="render_validation")
-    asset = _required_asset(storage, project)
-    storyboard = _required_storyboard(storage, project)
-    subtitles = _required_subtitles(storage, project, storyboard)
-    voice_config = _required_voice(storage, project)
-    preset = load_render_preset(config_dir, storyboard.format)
+    with get_render_limiter().acquire():
+        project = storage.read_project(project_id)
+        ensure_script_approved(storage, project.id, step="render_validation")
+        asset = _required_asset(storage, project)
+        storyboard = _required_storyboard(storage, project)
+        subtitles = _required_subtitles(storage, project, storyboard)
+        voice_config = _required_voice(storage, project)
+        preset = load_render_preset(config_dir, storyboard.format)
 
-    duration_limit = PREVIEW_DURATION_SEC if mode == "preview" else None
-    render_duration = min(storyboard.duration_sec, duration_limit) if duration_limit else storyboard.duration_sec
-    source_image_path = storage.resolve_project_path(project.id, asset.image_original_path or "")
-    frames_dir = storage.resolve_project_path(project.id, FRAMES_RELATIVE_DIR)
-    output_relative_path = (
-        PREVIEW_OUTPUT_TEMPLATE.format(format=storyboard.format)
-        if mode == "preview"
-        else FINAL_OUTPUT_TEMPLATE.format(format=storyboard.format)
-    )
-    output_path = storage.resolve_project_path(project.id, output_relative_path)
+        duration_limit = PREVIEW_DURATION_SEC if mode == "preview" else None
+        render_duration = min(storyboard.duration_sec, duration_limit) if duration_limit else storyboard.duration_sec
+        source_image_path = storage.resolve_project_path(project.id, asset.image_original_path or "")
+        frames_dir = storage.resolve_project_path(project.id, FRAMES_RELATIVE_DIR)
+        output_relative_path = (
+            PREVIEW_OUTPUT_TEMPLATE.format(format=storyboard.format)
+            if mode == "preview"
+            else FINAL_OUTPUT_TEMPLATE.format(format=storyboard.format)
+        )
+        output_path = storage.resolve_project_path(project.id, output_relative_path)
 
-    frame_result = render_storyboard_frames(
-        project_id=project.id,
-        image_path=source_image_path,
-        frames_dir=frames_dir,
-        relative_frames_dir=FRAMES_RELATIVE_DIR,
-        storyboard=storyboard,
-        output_size=RenderPresetSize(width=preset.width, height=preset.height),
-        cues=subtitles.cues,
-        credit_text=asset.credit,
-        duration_limit_sec=duration_limit,
-    )
+        frame_result = render_storyboard_frames(
+            project_id=project.id,
+            image_path=source_image_path,
+            frames_dir=frames_dir,
+            relative_frames_dir=FRAMES_RELATIVE_DIR,
+            storyboard=storyboard,
+            output_size=RenderPresetSize(width=preset.width, height=preset.height),
+            cues=subtitles.cues,
+            credit_text=asset.credit,
+            duration_limit_sec=duration_limit,
+        )
 
-    background_music = read_background_music_metadata(storage, project.id)
-    background_music_path = (
-        storage.resolve_project_path(project.id, background_music.file_path)
-        if background_music and storage.project_file_exists(project.id, background_music.file_path)
-        else None
-    )
-    audio_mix = build_audio_mix_plan(
-        narration_path=storage.resolve_project_path(project.id, voice_config.audio_path or ""),
-        duration_sec=render_duration,
-        background_music=background_music,
-        background_music_path=background_music_path,
-    )
-    assemble_video(
-        frames_dir=frames_dir,
-        fps=storyboard.fps,
-        duration_sec=render_duration,
-        output_path=output_path,
-        audio_mix=audio_mix,
-    )
+        background_music = read_background_music_metadata(storage, project.id)
+        background_music_path = (
+            storage.resolve_project_path(project.id, background_music.file_path)
+            if background_music and storage.project_file_exists(project.id, background_music.file_path)
+            else None
+        )
+        audio_mix = build_audio_mix_plan(
+            narration_path=storage.resolve_project_path(project.id, voice_config.audio_path or ""),
+            duration_sec=render_duration,
+            background_music=background_music,
+            background_music_path=background_music_path,
+        )
+        assemble_video(
+            frames_dir=frames_dir,
+            fps=storyboard.fps,
+            duration_sec=render_duration,
+            output_path=output_path,
+            audio_mix=audio_mix,
+        )
 
-    manifest = build_render_manifest(
-        project_id=project.id,
-        format_name=storyboard.format,
-        fps=storyboard.fps,
-        width=preset.width,
-        height=preset.height,
-        duration_sec=render_duration,
-        source_image_path=asset.image_original_path or "",
-        source_image_sha256=asset.sha256 or "",
-        storyboard_version=storyboard.version,
-        subtitles_path=subtitles.srt_path,
-        credit_text=asset.credit,
-        subtitle_overlay=frame_result.subtitle_overlay,
-        credit_overlay=frame_result.credit_overlay,
-        preview_output_path=output_relative_path if mode == "preview" else None,
-        final_output_path=output_relative_path if mode == "final" else None,
-        frame_count=len(frame_result.frame_paths),
-        keyframes=frame_result.keyframes,
-    )
-    write_render_manifest(storage, project.id, manifest)
-    _refresh_project_after_render(storage, project, mode=mode)
-    return manifest
+        manifest = build_render_manifest(
+            project_id=project.id,
+            format_name=storyboard.format,
+            fps=storyboard.fps,
+            width=preset.width,
+            height=preset.height,
+            duration_sec=render_duration,
+            source_image_path=asset.image_original_path or "",
+            source_image_sha256=asset.sha256 or "",
+            storyboard_version=storyboard.version,
+            subtitles_path=subtitles.srt_path,
+            credit_text=asset.credit,
+            subtitle_overlay=frame_result.subtitle_overlay,
+            credit_overlay=frame_result.credit_overlay,
+            preview_output_path=output_relative_path if mode == "preview" else None,
+            final_output_path=output_relative_path if mode == "final" else None,
+            frame_count=len(frame_result.frame_paths),
+            keyframes=frame_result.keyframes,
+        )
+        write_render_manifest(storage, project.id, manifest)
+        _refresh_project_after_render(storage, project, mode=mode)
+        return manifest
 
 
 def _required_asset(storage: ProjectStorage, project: Project) -> Asset:

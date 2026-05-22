@@ -304,6 +304,66 @@ export interface DownloadsResponse {
   missing: MissingDownload[];
 }
 
+export interface NasaSearchResult {
+  nasa_id: string;
+  title: string;
+  description: string;
+  source_url: string;
+  credit: string;
+  image_url: string | null;
+  thumbnail_url: string | null;
+  asset_manifest_url: string | null;
+  center: string | null;
+  date_created: string | null;
+}
+
+export interface NasaSearchResponse {
+  results: NasaSearchResult[];
+}
+
+export interface NasaImportRequest {
+  result: NasaSearchResult;
+  name: string | null;
+  target_language: string;
+  target_duration_sec: number;
+  formats: string[];
+}
+
+export type BatchItemStatus =
+  | "pending"
+  | "running"
+  | "paused"
+  | "succeeded"
+  | "blocked"
+  | "failed"
+  | "cancelled";
+
+export interface BatchQueueItem {
+  schema_version: "1.0";
+  id: string;
+  project_id: string;
+  action: "generate_all";
+  status: BatchItemStatus;
+  attempts: number;
+  max_attempts: number;
+  job_id: string | null;
+  summary: string;
+  error: JobError | null;
+  created_at: string;
+  updated_at: string;
+  finished_at: string | null;
+}
+
+export interface BatchQueueResponse {
+  items: BatchQueueItem[];
+}
+
+export interface BatchEnqueueRequest {
+  project_ids: string[];
+  action: "generate_all";
+  max_attempts: number;
+}
+
 export interface ProjectListResponse {
   projects: Project[];
 }
